@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>One-Time Data Import</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; color: #323130; }
+    h1 { color: #0078d4; }
+    p  { font-size: 14px; color: #605e5c; margin-bottom: 16px; }
+    .btn { background: #0078d4; color: #fff; border: none; border-radius: 4px; padding: 10px 28px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .log { background: #f3f2f1; border-radius: 6px; padding: 16px; font-size: 13px; font-family: monospace; white-space: pre-wrap; min-height: 200px; max-height: 500px; overflow-y: auto; margin-top: 16px; }
+    .ok  { color: #107c10; }
+    .err { color: #d13438; }
+    .warn { color: #8a5e00; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"></script>
+</head>
+<body>
+  <h1>One-Time Data Import — Week of May 10, 2026</h1>
+  <p>Imports last week's task data into the SharePoint Lists. Run once — safe to re-run (will skip if data already exists).</p>
+  <button class="btn" id="btn" onclick="runImport()">Import Data</button>
+  <div class="log" id="log">Click "Import Data" to begin…</div>
+
+<script>
+var SP_SITE = 'https://xtrodes.sharepoint.com/sites/X-trodes';
+var SP_API  = SP_SITE + '/_api';
+
+var MSAL_CONFIG = {
+  auth: {
+    clientId: '0f683555-282e-4228-95cc-22adb2581b3d',
+    authority: 'https://login.microsoftonline.com/xtrodes.onmicrosoft.com',
+    redirectUri: 'https://zipe-tech.github.io/meeting-dashboard/blank.html'
+  },
+  cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false }
+};
+var SP_SCOPES = ['https://xtrodes.sharepoint.com/AllSites.Write'];
+var msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+
+async function getToken() {
+  var accounts = msalInstance.getAllAccounts();
+  if (accounts.length === 0) {
+    await msalInstance.loginPopup({ scopes: SP_SCOPES });
+    accounts = msalInstance.getAllAccounts();
+  }
+  try {
+    var resp = await msalInstance.acquireTokenSilent({ scopes: SP_SCOPES, account: accounts[0] });
+    return resp.accessToken;
+  } catch(e) {
+    var resp = await msalInstance.acquireTokenPopup({ scopes: SP_SCOPES, account: accounts[0] });
+    return resp.accessToken;
+  }
+}
+
+async function spFetch(url, opts) {
+  var token = await getToken();
+  opts = opts || {};
+  opts.headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+  return fetch(url, opts);
+}
+
+async function spGetItems(listName, filter) {
+  var url = SP_API + "/web/lists/getbytitle('" + listName + "')/items?$top=500";
+  if (filter) url += '&$filter=' + encodeURIComponent(filter);
+  var r = await spFetch(url, { headers: { 'Accept': 'application/json;odata=nometadata' } });
+  if (!r.ok) throw new Error('Read error ' + r.status);
+  return (await r.json()).value;
+}
+
+async function spCreate(listName, data) {
+  var r = await spFetch(SP_API + "/web/lists/getbytitle('" + listName + "')/items", {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json;odata=nometadata',
+      'Content-Type': 'application/json;odata=nometadata'
+    },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) { var t = await r.text(); throw new Error('Create error ' + r.status + ': ' + t.substring(0,200)); }
+  return r.json();
+}
+
+// ── Data to import ─────────────────────────────────────────────────────────────
+var WEEK_OF = '2026-05-10';
+
+var FOCUS = {
+  weekOf: '2026-05-10',
+  focus: '2.6 release',
+  priorities: ['102 training','1.54 - root analysis','SBIR & BIRDF submissions','EIC & CE answers','Conference preparations']
+};
+
+var MEMBERS = [
+  {
+    userId:'ilanr', name:'Ilan Ron', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T07:08:47.446Z',
+    tasks:[
+      {id:'ir101',title:'Oscillations and mutual disturbances — investigation meeting',status:'Planned',milestoneId:'4',deadline:null,notes:''},
+      {id:'ir102',title:'DAU 1.4.2 physiological tests — coordination and execution',status:'In Progress',milestoneId:'4',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[
+      {id:'mozfh5zrpvgp',title:'Release 2.6 - code freeze',milestoneId:'5'},
+      {id:'mozfj6efpw0u',title:'1.55 initiation with Zif',milestoneId:'1'},
+      {id:'mozflwxxiu2t',title:'Testing possible HW solutions',milestoneId:'11'}
+    ]
+  },
+  {
+    userId:'deganitb', name:'Deganit Barak-Shinar', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T07:11:26.028Z',
+    tasks:[
+      {id:'db101',title:'EIC supplementary documents — finalize and submit',status:'Completed',milestoneId:'6',deadline:null,notes:''},
+      {id:'db102',title:'CE submission — complete remaining documents',status:'In Progress',milestoneId:'3',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[
+      {id:'mozfnx9rqsnx',title:'CE submission — complete remaining documents',milestoneId:'3'},
+      {id:'mozfoaxm6oh0',title:'Sending Mayo order',milestoneId:'1'}
+    ]
+  },
+  {
+    userId:'guyr', name:'Guy Rosenthal', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T06:50:50.227Z',
+    tasks:[
+      {id:'mozeuw7u6w2q',title:'Nistec production batch — 20 units',status:'In Progress',milestoneId:'11',deadline:null,notes:''},
+      {id:'mozeyd48eais',title:'PS - Centifuge analysis',status:'In Progress',milestoneId:'5',deadline:null,notes:''},
+      {id:'mozeyx2xwrpg',title:'PS - Helicopter analysis',status:'Postponed by Management',milestoneId:'5',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[
+      {id:'mozeu4r2e1fx',title:'PS - 102 - Training and start flights',milestoneId:'5'},
+      {id:'mozevcmzhy22',title:'Nistec production batch — 20 units',milestoneId:'11'},
+      {id:'mozex4fle0gn',title:'PS - Centifuge anaiysis',milestoneId:'5'},
+      {id:'mozexiq9rne1',title:'PS - Helicopter analysis',milestoneId:'5'}
+    ]
+  },
+  {
+    userId:'estherd', name:'Esther Harduf', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T07:21:08.141Z',
+    tasks:[
+      {id:'eh101',title:'Meetings with leads at Robotics conference — follow up',status:'Postponed by Management',milestoneId:'2',deadline:null,notes:''},
+      {id:'eh102',title:'Brochure design for conference — approve and send to print',status:'Completed',milestoneId:'2',deadline:null,notes:''},
+      {id:'mozfxvg950oc',title:'Duvdevan initiation',status:'Completed',milestoneId:'1',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[
+      {id:'mozfzcmizcav',title:'Rollup & brochure - send for printing',milestoneId:'2'},
+      {id:'mozfztebqy99',title:'Demo preperation',milestoneId:'2'},
+      {id:'mozg0wgowmtn',title:'Finalize project scope & sponsors',milestoneId:'1'},
+      {id:'mozg1sge69c8',title:'Examine SOCCOM opportunity',milestoneId:'2'}
+    ]
+  },
+  {
+    userId:'yizhaqsh', name:'Yizhaq Shmayahu', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T07:24:14.197Z',
+    tasks:[
+      {id:'ys101',title:'App release 1.5.4 — finalize and publish',status:'In Progress',milestoneId:'4',deadline:'2026-06-02',notes:''},
+      {id:'ys102',title:'BIRD grant — stage 1 submission (sleep solution, USA)',status:'Stuck',milestoneId:'2',deadline:null,notes:''},
+      {id:'ys103',title:'EIC 2 — submission completion',status:'Completed',milestoneId:'6',deadline:null,notes:''},
+      {id:'ys104',title:'EIC 1 — remaining items',status:'Completed',milestoneId:'6',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[
+      {id:'mozg4n8uwxsk',title:'SBIR - PS Phase 1 draft',milestoneId:'2'},
+      {id:'mozg5jfv8lq7',title:'SEO - review and final comments',milestoneId:'1'},
+      {id:'mozg5x3mjf4y',title:'Bird submission',milestoneId:'2'}
+    ]
+  },
+  {
+    userId:'danielpo', name:'Daniel Possti', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T07:28:12.301Z',
+    tasks:[
+      {id:'movmwjhxyouy',title:'Sleep body position validation (Charite data)',status:'In Progress',milestoneId:'8',deadline:null,notes:''},
+      {id:'mozg7mro12p9',title:'DQR - comparison',status:'Completed',milestoneId:'5',deadline:null,notes:''},
+      {id:'mozg83bennz9',title:'SleepFM validation XTR',status:'Completed',milestoneId:'2',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[
+      {id:'mozg8q52x7gk',title:'SleepFM PSG data',milestoneId:'2'},
+      {id:'mozg9590svdn',title:'A version LOD + DQR',milestoneId:'10'},
+      {id:'mozgarafkot3',title:'Sleep body position validation (Charite data)',milestoneId:'8'}
+    ]
+  },
+  {
+    userId:'leonardos', name:'Leonardo Sandler', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T07:33:21.630Z',
+    tasks:[
+      {id:'ls101',title:'Complete first mechanical test protocol (DAU 1.5)',status:'In Progress',milestoneId:'3',deadline:null,notes:''},
+      {id:'ls102',title:'Develop new mechanical test jig with Ram',status:'In Progress',milestoneId:'3',deadline:null,notes:''},
+      {id:'ls103',title:'Nistec release decision follow-up',status:'Completed',milestoneId:'4',deadline:null,notes:''},
+      {id:'ls104',title:'Oscillation investigation — night tests continuation',status:'In Progress',milestoneId:'4',deadline:null,notes:''},
+      {id:'ls105',title:'DAU 1.4.2 — physiological tests execution',status:'In Progress',milestoneId:'4',deadline:null,notes:'Pending units from previous week'}
+    ],
+    nextWeekPlans:[
+      {id:'mozgefz5aqvw',title:'Testing possible HW solutions',milestoneId:'11'},
+      {id:'mozgf524x26p',title:'developing new Jig',milestoneId:'4'},
+      {id:'mozgg7ihd2a6',title:'Electrophysiology test for 1.54 (electromechanical)',milestoneId:'4'},
+      {id:'mozghn7bycvu',title:'Nistec production batch — send order',milestoneId:'4'}
+    ]
+  },
+  {
+    userId:'ronah', name:'Rona Haker', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T07:36:29.598Z',
+    tasks:[
+      {id:'rh101',title:'Centrifuge data — complete consolidation and review',status:'In Progress',milestoneId:'5',deadline:null,notes:''},
+      {id:'rh102',title:'YARPA visit — return equipment, tag data with videos',status:'Completed',milestoneId:'5',deadline:null,notes:''},
+      {id:'rh103',title:'Customer-side preparation for app version release',status:'In Progress',milestoneId:'4',deadline:null,notes:''},
+      {id:'rh104',title:'Physiological tests 1.4.2 — support execution',status:'Postponed by Management',milestoneId:'4',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[
+      {id:'mozgkeu865aa',title:'PS - 102 - Training and start flights (material and coordination)',milestoneId:'5'},
+      {id:'mozgl6ta4h8a',title:'Decision and system prep (tablets) for Mayo',milestoneId:'1'},
+      {id:'mozglnhjfbxr',title:'Centrifuge results debrief — initial brief review',milestoneId:'4'}
+    ]
+  },
+  {
+    userId:'rams', name:'Ram Shalom', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T07:42:57.433Z',
+    tasks:[
+      {id:'rs101',title:'Verify new mechanics and quality check',status:'Completed',milestoneId:'1',deadline:null,notes:''},
+      {id:'rs102',title:'Face patch — finalize production files',status:'Completed',milestoneId:'2',deadline:null,notes:''},
+      {id:'rs103',title:'Test jig — parts selection and assembly',status:'In Progress',milestoneId:'4',deadline:null,notes:''},
+      {id:'rs104',title:'Plan and approve upcoming patch production changes',status:'Completed',milestoneId:'1',deadline:null,notes:''},
+      {id:'rs105',title:'Conductive materials evaluation for jigs',status:'In Progress',milestoneId:'4',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[
+      {id:'mozgscgonri3',title:'Rollup & brochure - send for printing',milestoneId:'2'},
+      {id:'mozgt9h3k9st',title:'EMG 1.3 - product insights + connector',milestoneId:'1'},
+      {id:'mozgtk8mvbic',title:'Test jig — parts selection and assembly',milestoneId:'4'},
+      {id:'mozgtv239vxm',title:'Clamp pressure test',milestoneId:'1'}
+    ]
+  },
+  {
+    userId:'shanioz', name:'Shani Oz', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T07:48:58.536Z',
+    tasks:[
+      {id:'mozguqdm7ils',title:'LOD - code review',status:'Completed',milestoneId:'4',deadline:null,notes:''},
+      {id:'mozgvk3dfdcj',title:'QA LOD - app (automatic code)',status:'Completed',milestoneId:'4',deadline:null,notes:''},
+      {id:'mozgw9cx74ci',title:'Documentation LOD',status:'Completed',milestoneId:'4',deadline:null,notes:''},
+      {id:'mozgx2n7a68a',title:'Centrefuge April 1 analysis',status:'In Progress',milestoneId:'4',deadline:null,notes:''},
+      {id:'mozgxo1vz5d5',title:'Helicopter analysis',status:'In Progress',milestoneId:'4',deadline:null,notes:''},
+      {id:'mozgz0jbv16v',title:'Body position disconnections (LOD in sites) review',status:'Completed',milestoneId:'4',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[
+      {id:'mozgznjbj2ha',title:'LOD - integration',milestoneId:'4'},
+      {id:'mozh1lydjeq5',title:'Centrefuge April 1+2 data managment',milestoneId:'4'}
+    ]
+  },
+  {
+    userId:'liorm', name:'Lior Mark', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T07:51:53.861Z',
+    tasks:[
+      {id:'mozh2j7o6m4u',title:'Check new mechanics',status:'Completed',milestoneId:'1',deadline:null,notes:''},
+      {id:'mozh2wjx4ioh',title:'Assembly 1.54',status:'Completed',milestoneId:'1',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[
+      {id:'mozh3p1t5pyo',title:'Complete 1.54 tests',milestoneId:'1'},
+      {id:'mozh3ywwepe8',title:'Test 1.3',milestoneId:'1'},
+      {id:'mozh5hq2wwjp',title:'Release 2.6 - QA',milestoneId:'4'}
+    ]
+  },
+  {
+    userId:'nitzane', name:'Nitzan Elad', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T07:57:21.962Z',
+    tasks:[
+      {id:'mozf29n6pt3r',title:'QA pre- realease',status:'Completed',milestoneId:'5',deadline:null,notes:'Failed - need to repeat'},
+      {id:'mozf2rle2dqh',title:'Initiation meeting NEMO',status:'Completed',milestoneId:'9',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[
+      {id:'mozf3alcup3a',title:'QA for release',milestoneId:'5'},
+      {id:'mozf4e5cy8uj',title:'Initiation meeting for the root cause analysis',milestoneId:'5'},
+      {id:'mozhca39vdzg',title:'Meetings with academy - Nemo (2-3)',milestoneId:'9'}
+    ]
+  },
+  {
+    userId:'GonenB', name:'Gonen Bronshtein', weekOf:WEEK_OF, submitted:true,
+    submittedAt:'2026-05-10T08:04:18.865Z',
+    tasks:[
+      {id:'mozhe6055480',title:'AWS cost - meeting',status:'Completed',milestoneId:'11',deadline:null,notes:''},
+      {id:'mozhevo1cfo5',title:'BDF bug fix - exploration',status:'In Progress',milestoneId:'11',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[
+      {id:'mozhfokmz5fw',title:'BDF bug fix - solution',milestoneId:'11'},
+      {id:'mozhh1rjgkhr',title:'BioT user permissions for uploader - if needed',milestoneId:'5'},
+      {id:'mozhlg6hr0tn',title:'Automated BDF for PS - initiation',milestoneId:'5'}
+    ]
+  },
+  {
+    userId:'zivp', name:'Ziv Peremen', weekOf:WEEK_OF, submitted:false,
+    submittedAt:'',
+    tasks:[
+      {id:'zp101',title:'Application release with LOD — decision and publish',status:'In Progress',milestoneId:'4',deadline:null,notes:'Carry over from previous week'},
+      {id:'zp102',title:'1.5.4 release — final review and sign-off',status:'In Progress',milestoneId:'4',deadline:null,notes:''},
+      {id:'zp103',title:'Nistec production batch — follow up on decision',status:'In Progress',milestoneId:'4',deadline:null,notes:''}
+    ],
+    nextWeekPlans:[]
+  }
+];
+
+function log(msg, cls) {
+  var el = document.getElementById('log');
+  var d = document.createElement('div');
+  if (cls) d.className = cls;
+  d.textContent = msg;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function runImport() {
+  var btn = document.getElementById('btn');
+  btn.disabled = true;
+  document.getElementById('log').innerHTML = '';
+  try {
+    log('Authenticating…');
+    await getToken();
+    log('✓ Signed in', 'ok');
+
+    // Import focus
+    log('');
+    log('Checking MeetingFocus for week ' + WEEK_OF + '…');
+    var existing = await spGetItems('MeetingFocus', "Title eq '" + WEEK_OF + "'");
+    if (existing.length > 0) {
+      log('  ⚠ Focus already exists — skipping', 'warn');
+    } else {
+      await spCreate('MeetingFocus', {
+        Title: FOCUS.weekOf,
+        Focus: FOCUS.focus,
+        PrioritiesJson: JSON.stringify(FOCUS.priorities)
+      });
+      log('  ✓ Focus imported', 'ok');
+    }
+
+    // Import member data
+    log('');
+    log('Importing team member data…');
+    for (var i = 0; i < MEMBERS.length; i++) {
+      var m = MEMBERS[i];
+      log('  Checking ' + m.name + '…');
+      var ex = await spGetItems('MeetingWeeklyData', "Title eq '" + m.userId + "' and WeekOf eq '" + WEEK_OF + "'");
+      if (ex.length > 0) {
+        log('    ⚠ Already exists — skipping', 'warn');
+        continue;
+      }
+      await spCreate('MeetingWeeklyData', {
+        Title:             m.userId,
+        WeekOf:            m.weekOf,
+        UserName:          m.name,
+        TasksJson:         JSON.stringify(m.tasks),
+        NextWeekPlansJson: JSON.stringify(m.nextWeekPlans),
+        Submitted:         m.submitted,
+        SubmittedAt:       m.submittedAt || ''
+      });
+      log('    ✓ Imported (' + m.tasks.length + ' tasks)', 'ok');
+    }
+
+    log('');
+    log('✓ Import complete! Open the dashboard and navigate to week of May 10.', 'ok');
+  } catch(e) {
+    log('✗ ERROR: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+msalInstance.handleRedirectPromise().catch(function(){});
+</script>
+</body>
+</html>
