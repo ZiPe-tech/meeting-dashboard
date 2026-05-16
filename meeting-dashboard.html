@@ -947,7 +947,10 @@ async function signIn() {
   try {
     await msalInstance.loginPopup({ scopes: SP_SCOPES });
     document.getElementById('loading').textContent = 'Loading dashboard…';
-    await loadAndRender();
+    await load();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    render();
   } catch(e) {
     document.getElementById('loading').innerHTML =
       '<div style="color:#d13438;margin-bottom:12px">Sign in failed: ' + esc(e.message) + '</div>'+
