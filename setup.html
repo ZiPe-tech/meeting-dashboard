@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Meeting App — Setup</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; color: #323130; }
+    h1 { color: #0078d4; margin-bottom: 6px; }
+    p  { font-size: 14px; color: #605e5c; margin-bottom: 16px; }
+    .warn { background: #fff4ce; border: 1px solid #f0d96a; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin-bottom: 20px; }
+    .btn { background: #0078d4; color: #fff; border: none; border-radius: 4px; padding: 10px 28px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .log { background: #f3f2f1; border-radius: 6px; padding: 16px; font-size: 13px; font-family: monospace; white-space: pre-wrap; min-height: 160px; max-height: 420px; overflow-y: auto; margin-top: 16px; }
+    .ok  { color: #107c10; }
+    .err { color: #d13438; }
+  </style>
+  <script src="https://alcdn.msauth.net/browser/2.39.0/js/msal-browser.min.js"></script>
+</head>
+<body>
+  <h1>Meeting App — First-Time Setup</h1>
+  <p>Creates the two SharePoint Lists the app needs. Run once — you must be a <strong>Site Owner</strong> (or have "Manage Lists" permission). Open this page directly from SharePoint while signed in to Microsoft 365.</p>
+  <div class="warn">⚠ This page must be opened from SharePoint, not from your desktop. If you see authentication errors, make sure you are signed in at <a href="https://xtrodes.sharepoint.com" target="_blank">xtrodes.sharepoint.com</a> first.</div>
+  <button class="btn" id="btn" onclick="runSetup()">Create Lists</button>
+  <div class="log" id="log">Click "Create Lists" to begin…</div>
+
+<script>
+var SP_API = 'https://xtrodes.sharepoint.com/sites/X-trodes/_api';
+
+// ── MSAL authentication ────────────────────────────────────────────────────────
+var MSAL_CONFIG = {
+  auth: {
+    clientId: '0f683555-282e-4228-95cc-22adb2581b3d',  // ← paste your Azure AD App (client) ID here
+    authority: 'https://login.microsoftonline.com/xtrodes.onmicrosoft.com',
+    redirectUri: 'https://zipe-tech.github.io/meeting-dashboard/blank.html'
+  },
+  cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false }
+};
+var SP_SCOPES = ['https://xtrodes.sharepoint.com/AllSites.Write'];
+var msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+
+async function getToken() {
+  var accounts = msalInstance.getAllAccounts();
+  if (accounts.length === 0) {
+    await msalInstance.loginPopup({ scopes: SP_SCOPES });
+    accounts = msalInstance.getAllAccounts();
+  }
+  try {
+    var resp = await msalInstance.acquireTokenSilent({ scopes: SP_SCOPES, account: accounts[0] });
+    return resp.accessToken;
+  } catch(e) {
+    var resp = await msalInstance.acquireTokenPopup({ scopes: SP_SCOPES, account: accounts[0] });
+    return resp.accessToken;
+  }
+}
+
+async function spFetch(url, opts) {
+  var token = await getToken();
+  opts = opts || {};
+  opts.headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+  return fetch(url, opts);
+}
+
+function log(msg, cls) {
+  var el = document.getElementById('log');
+  var d = document.createElement('div');
+  if (cls) d.className = cls;
+  d.textContent = msg;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function listExists(name) {
+  var r = await spFetch(SP_API + "/web/lists/getbytitle('" + name + "')?$select=Title", {
+    headers: { 'Accept': 'application/json;odata=nometadata' }
+  });
+  return r.ok;
+}
+
+async function createList(name) {
+  var r = await spFetch(SP_API + '/web/lists', {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json;odata=verbose',
+      'Content-Type': 'application/json;odata=verbose'
+    },
+    body: JSON.stringify({ '__metadata': { 'type': 'SP.List' }, 'Title': name, 'BaseTemplate': 100 })
+  });
+  if (!r.ok) { var t = await r.text(); throw new Error('Create list failed ' + r.status + ': ' + t.substring(0, 300)); }
+}
+
+async function addField(listName, fieldDef) {
+  var r = await spFetch(SP_API + "/web/lists/getbytitle('" + listName + "')/fields", {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json;odata=verbose',
+      'Content-Type': 'application/json;odata=verbose'
+    },
+    body: JSON.stringify(fieldDef)
+  });
+  if (!r.ok) { var t = await r.text(); throw new Error('Add field failed ' + r.status + ': ' + t.substring(0, 300)); }
+}
+
+async function ensureList(name, fields) {
+  log('Checking: ' + name + '…');
+  if (await listExists(name)) {
+    log('  ✓ Already exists — skipping', 'ok');
+    return;
+  }
+  log('  Creating list…');
+  await createList(name);
+  log('  ✓ List created', 'ok');
+  for (var i = 0; i < fields.length; i++) {
+    log('  Adding column: ' + fields[i].Title + '…');
+    await addField(name, fields[i]);
+    log('  ✓ Done', 'ok');
+  }
+}
+
+async function runSetup() {
+  var btn = document.getElementById('btn');
+  btn.disabled = true;
+  document.getElementById('log').innerHTML = '';
+  try {
+    log('Authenticating…');
+    await getToken();
+    log('✓ Signed in', 'ok');
+
+    await ensureList('MeetingWeeklyData', [
+      { '__metadata': { 'type': 'SP.Field' }, 'Title': 'WeekOf', 'FieldTypeKind': 2 },
+      { '__metadata': { 'type': 'SP.Field' }, 'Title': 'UserName', 'FieldTypeKind': 2 },
+      { '__metadata': { 'type': 'SP.FieldMultiLineText' }, 'Title': 'TasksJson', 'FieldTypeKind': 3, 'NumberOfLines': 20 },
+      { '__metadata': { 'type': 'SP.FieldMultiLineText' }, 'Title': 'NextWeekPlansJson', 'FieldTypeKind': 3, 'NumberOfLines': 10 },
+      { '__metadata': { 'type': 'SP.Field' }, 'Title': 'Submitted', 'FieldTypeKind': 8 },
+      { '__metadata': { 'type': 'SP.Field' }, 'Title': 'SubmittedAt', 'FieldTypeKind': 2 }
+    ]);
+
+    await ensureList('MeetingFocus', [
+      { '__metadata': { 'type': 'SP.FieldMultiLineText' }, 'Title': 'Focus', 'FieldTypeKind': 3, 'NumberOfLines': 5 },
+      { '__metadata': { 'type': 'SP.FieldMultiLineText' }, 'Title': 'PrioritiesJson', 'FieldTypeKind': 3, 'NumberOfLines': 10 }
+    ]);
+
+    log('');
+    log('✓ Setup complete! Both lists are ready.', 'ok');
+    log('You can now close this page and use the app.', 'ok');
+  } catch (e) {
+    log('✗ ERROR: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+msalInstance.handleRedirectPromise().catch(function(){});
+</script>
+</body>
+</html>

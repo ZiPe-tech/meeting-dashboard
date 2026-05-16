@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weekly Update</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f3f2f1; color: #323130; min-height: 100vh; }
+    .app { max-width: 860px; margin: 0 auto; padding: 24px 16px; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .top-bar h1 { font-size: 20px; color: #0078d4; }
+    .meta { font-size: 13px; color: #605e5c; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 6px; }
+    .badge-ok   { background: #dff6dd; color: #107c10; }
+    .badge-warn { background: #fde7e9; color: #d13438; }
+    .badge-arc  { background: #e1f0ff; color: #0078d4; }
+    .week-nav { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 8px; padding: 10px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; }
+    .week-nav-btn { background: none; border: 1px solid #edebe9; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 13px; color: #323130; }
+    .week-nav-btn:hover { background: #f3f2f1; }
+    .week-nav-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .week-nav-label { flex: 1; text-align: center; font-size: 14px; font-weight: 600; color: #323130; }
+    .week-nav-today { font-size: 12px; background: #0078d4; color: #fff; border: none; border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+    .prep-bar { background: #fff; border: 1px solid #f0d96a; border-radius: 8px; padding: 12px 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .prep-bar-text { font-size: 13px; color: #605e5c; }
+    .prep-bar-text strong { color: #323130; }
+    .btn-prep { background: #fff4ce; color: #8a5e00; border: 1px solid #f0d96a; border-radius: 6px; padding: 7px 18px; cursor: pointer; font-size: 13px; font-weight: 700; white-space: nowrap; }
+    .btn-prep:hover { background: #fef3c7; border-color: #e0b800; }
+    .arc-banner { background: #e1f0ff; border: 1px solid #c7e0f4; border-radius: 6px; padding: 10px 16px; margin-bottom: 14px; font-size: 13px; color: #0078d4; font-weight: 500; display: none; }
+    .focus-card { background: #fff8e1; border: 1px solid #f0d96a; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; display: none; }
+    .focus-card-title { font-size: 11px; font-weight: 700; color: #8a7535; letter-spacing: .6px; text-transform: uppercase; margin-bottom: 8px; }
+    .focus-text { font-size: 16px; font-weight: 700; color: #323130; margin-bottom: 10px; }
+    .focus-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    .focus-list li { display: flex; align-items: baseline; gap: 10px; font-size: 13px; color: #323130; }
+    .focus-num { background: #8a7535; color: #fff; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; line-height: 1; }
+    .card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; }
+    .card-section { font-size: 11px; font-weight: 700; color: #605e5c; letter-spacing: .6px; text-transform: uppercase; margin-bottom: 12px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .tabs { display: flex; border-bottom: 1px solid #edebe9; margin-bottom: 12px; flex-wrap: wrap; }
+    .tab { padding: 6px 12px; border: none; border-bottom: 2px solid transparent; background: none; cursor: pointer; font-size: 13px; color: #605e5c; white-space: nowrap; }
+    .tab.active { border-bottom-color: #0078d4; color: #0078d4; font-weight: 600; }
+    .tab-n { font-size: 11px; margin-left: 3px; color: #a19f9d; }
+    .btn { border: none; border-radius: 4px; padding: 7px 16px; cursor: pointer; font-size: 14px; font-weight: 600; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: #0078d4; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #106ebe; }
+    .btn-outline { background: #fff; color: #323130; border: 1px solid #8a8886; }
+    .btn-danger  { background: #fff; color: #d13438; border: 1px solid #d13438; }
+    .btn-sm { padding: 3px 10px; font-size: 12px; font-weight: 500; }
+    .task-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f3f2f1; }
+    .task-row:last-child { border-bottom: none; }
+    .drag-handle { cursor: grab; color: #c8c6c4; font-size: 18px; padding: 0 2px 0 0; flex-shrink: 0; line-height: 1; user-select: none; }
+    .drag-handle:active { cursor: grabbing; }
+    .task-row.dragging { opacity: .35; background: #faf9f8; }
+    .task-row.drag-over-top { box-shadow: 0 -2px 0 0 #0078d4; }
+    .task-row.drag-over-bottom { box-shadow: 0 2px 0 0 #0078d4; }
+    .pill { padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+    .task-info { flex: 1; min-width: 0; }
+    .task-title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .task-meta { font-size: 12px; color: #605e5c; margin-top: 2px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .ms-tag { background: #f3f2f1; padding: 1px 7px; border-radius: 4px; }
+    .task-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .empty { text-align: center; padding: 28px 0; color: #a19f9d; font-size: 14px; }
+    .submit-bar { display: flex; align-items: center; gap: 16px; padding-top: 4px; }
+    .hint { font-size: 13px; color: #605e5c; }
+    .banner { padding: 10px 16px; border-radius: 4px; margin-bottom: 16px; font-size: 14px; font-weight: 500; display: none; }
+    .banner-ok  { background: #dff6dd; border: 1px solid #107c10; color: #107c10; }
+    .banner-err { background: #fde7e9; border: 1px solid #d13438; color: #d13438; }
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 999; align-items: center; justify-content: center; }
+    .overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 8px; padding: 28px 32px; width: 460px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+    .modal h2 { font-size: 18px; margin-bottom: 20px; }
+    .fg { margin-bottom: 14px; }
+    .fg label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .fg input, .fg select, .fg textarea { width: 100%; padding: 7px 10px; border: 1px solid #8a8886; border-radius: 4px; font-size: 14px; font-family: inherit; }
+    .fg textarea { height: 70px; resize: vertical; }
+    .fg input:focus, .fg select:focus, .fg textarea:focus { outline: none; border-color: #0078d4; box-shadow: 0 0 0 2px rgba(0,120,212,.15); }
+    .err-txt { color: #d13438; font-size: 12px; margin-top: 3px; min-height: 16px; }
+    .mf { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+    .loading { text-align: center; padding: 80px; color: #605e5c; font-size: 16px; }
+    .user-btn { font-size: 12px; color: #0078d4; background: none; border: none; cursor: pointer; text-decoration: underline; margin-left: 8px; }
+    #prev-plans-card { background: #f0f6ff; border: 1px solid #c7e0f4; }
+    #prev-plans-card .card-section { color: #0078d4; }
+    .prev-plans-hint { font-size: 12px; color: #605e5c; margin-bottom: 12px; }
+    .btn-import-all { font-size: 12px; background: #deecf9; color: #0078d4; border: 1px solid #c7e0f4; border-radius: 4px; padding: 3px 10px; cursor: pointer; font-weight: 600; }
+    .btn-import-all:hover { background: #c7e0f4; }
+  </style>
+  <script src="https://alcdn.msauth.net/browser/2.39.0/js/msal-browser.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <div id="loading" class="loading">Loading…</div>
+  <div id="main" style="display:none">
+    <div id="banner" class="banner"></div>
+    <div class="top-bar">
+      <div>
+        <div class="meta" style="margin-bottom:4px">
+          <span id="user-name" style="font-weight:600;font-size:15px"></span>
+          <span id="status-badge" class="badge badge-warn">Not submitted</span>
+          <button class="user-btn" id="btn-change-user" onclick="changeName()">change</button>
+        </div>
+      </div>
+    </div>
+    <div class="week-nav">
+      <button class="week-nav-btn" onclick="shiftWeek(-1)">← Prev Week</button>
+      <span class="week-nav-label" id="week-nav-label"></span>
+      <button class="week-nav-btn" id="btn-next-week" onclick="shiftWeek(1)">Next Week →</button>
+      <button class="week-nav-today" id="btn-today" onclick="goToday()" style="display:none">Today</button>
+    </div>
+    <div class="arc-banner" id="arc-banner"></div>
+    <div class="prep-bar" id="prep-bar" style="display:none">
+      <span class="prep-bar-text">Get ready for next week — <strong>add tasks and priorities before the meeting</strong></span>
+      <button class="btn-prep" onclick="goNextWeek()">📋 Prepare Next Week →</button>
+    </div>
+    <div class="card" id="prev-plans-card" style="display:none">
+      <div class="toolbar">
+        <div class="card-section">📋 Planned for this week</div>
+        <button class="btn-import-all" id="btn-import-all" onclick="importAllPlans()">↓ Import all</button>
+      </div>
+      <div class="prev-plans-hint" id="prev-plans-hint"></div>
+      <div id="prev-plans-list"></div>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <div class="card-section">This Week's Tasks</div>
+        <button class="btn btn-primary btn-sm" id="btn-add" onclick="openModal()">+ Add Task</button>
+      </div>
+      <div class="tabs" id="tabs"></div>
+      <div id="task-list"></div>
+    </div>
+    <div class="card" id="nwp-card">
+      <div class="toolbar">
+        <div class="card-section">Plans for Next Week</div>
+        <button class="btn btn-primary btn-sm" id="btn-add-nwp" onclick="openNWPModal()">+ Add Plan</button>
+      </div>
+      <div id="nwp-list"></div>
+    </div>
+    <div class="submit-bar" id="submit-bar">
+      <button class="btn btn-primary" id="btn-submit" onclick="submitUpdate()">Submit Weekly Update</button>
+      <span class="hint" id="submit-hint"></span>
+    </div>
+    <div id="reopen-bar" style="display:none;margin-top:8px">
+      <button class="btn btn-outline btn-sm" onclick="reopenSubmission()">✎ Edit submitted update</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="name-overlay">
+  <div class="modal">
+    <h2>Who are you?</h2>
+    <p style="font-size:14px;color:#605e5c;margin-bottom:20px">Select your name to load your weekly tasks.</p>
+    <div class="fg">
+      <label>Your name</label>
+      <select id="name-select"><option value="">— Select your name —</option></select>
+    </div>
+    <div class="mf">
+      <button class="btn btn-primary" onclick="confirmName()">Continue</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="task-overlay" onclick="if(event.target===this)closeTaskModal()">
+  <div class="modal">
+    <h2 id="modal-title">Add Task</h2>
+    <div class="fg">
+      <label>Title *</label>
+      <input id="f-title" type="text" placeholder="What needs to be done?" />
+      <div class="err-txt" id="e-title"></div>
+    </div>
+    <div class="fg" id="row-status">
+      <label>Status *</label>
+      <select id="f-status">
+        <option value="Planned">Planned</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Completed">Completed</option>
+        <option value="Stuck">Stuck</option>
+        <option value="Postponed by Management">Postponed by Management</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Milestone *</label>
+      <select id="f-milestone"><option value="">— Select milestone —</option></select>
+      <div class="err-txt" id="e-milestone"></div>
+    </div>
+    <div class="fg" id="row-deadline">
+      <label>Deadline (optional)</label>
+      <input id="f-deadline" type="date" />
+    </div>
+    <div class="fg" id="row-notes">
+      <label>Notes (optional)</label>
+      <textarea id="f-notes" placeholder="Any context…"></textarea>
+    </div>
+    <div class="mf">
+      <button class="btn btn-outline" onclick="closeTaskModal()">Cancel</button>
+      <button class="btn btn-primary" id="btn-save" onclick="saveTask()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SharePoint configuration ──────────────────────────────────────────────────
+var SP_SITE = 'https://xtrodes.sharepoint.com/sites/X-trodes';
+var SP_API  = SP_SITE + '/_api';
+// UPDATE THIS PATH after uploading the app folder to SharePoint:
+var SP_APP_RELPATH = '/sites/X-trodes/Shared Documents/General/Management SW/sharepoint-app';
+
+// ── SharePoint API helpers ────────────────────────────────────────────────────
+// ── MSAL authentication ────────────────────────────────────────────────────────
+var MSAL_CONFIG = {
+  auth: {
+    clientId: '0f683555-282e-4228-95cc-22adb2581b3d',  // ← paste your Azure AD App (client) ID here
+    authority: 'https://login.microsoftonline.com/xtrodes.onmicrosoft.com',
+    redirectUri: 'https://zipe-tech.github.io/meeting-dashboard/blank.html'
+  },
+  cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false }
+};
+var SP_SCOPES = ['https://xtrodes.sharepoint.com/AllSites.Write'];
+var msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+
+async function getToken() {
+  var accounts = msalInstance.getAllAccounts();
+  if (accounts.length === 0) {
+    await msalInstance.loginPopup({ scopes: SP_SCOPES });
+    accounts = msalInstance.getAllAccounts();
+  }
+  try {
+    var resp = await msalInstance.acquireTokenSilent({ scopes: SP_SCOPES, account: accounts[0] });
+    return resp.accessToken;
+  } catch(e) {
+    var resp = await msalInstance.acquireTokenPopup({ scopes: SP_SCOPES, account: accounts[0] });
+    return resp.accessToken;
+  }
+}
+
+async function spFetch(url, opts) {
+  var token = await getToken();
+  opts = opts || {};
+  opts.headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+  return fetch(url, opts);
+}
+
+// ── SharePoint API helpers ─────────────────────────────────────────────────────
+async function spGetItems(listName, filter) {
+  var url = SP_API + "/web/lists/getbytitle('" + listName + "')/items?$top=500";
+  if (filter) url += '&$filter=' + encodeURIComponent(filter);
+  var r = await spFetch(url, { headers: { 'Accept': 'application/json;odata=nometadata' } });
+  if (!r.ok) throw new Error('SharePoint read error ' + r.status);
+  return (await r.json()).value;
+}
+
+async function spCreate(listName, data) {
+  var r = await spFetch(SP_API + "/web/lists/getbytitle('" + listName + "')/items", {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json;odata=nometadata',
+      'Content-Type': 'application/json;odata=nometadata'
+    },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) { var t = await r.text(); throw new Error('SharePoint create error ' + r.status + ': ' + t.substring(0,200)); }
+  return r.json();
+}
+
+async function spMerge(listName, itemId, data) {
+  var r = await spFetch(SP_API + "/web/lists/getbytitle('" + listName + "')/items(" + itemId + ")", {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json;odata=nometadata',
+      'Content-Type': 'application/json;odata=nometadata',
+      'X-HTTP-Method': 'MERGE',
+      'IF-MATCH': '*'
+    },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok && r.status !== 204) throw new Error('SharePoint update error ' + r.status);
+}
+
+function safeJSON(s, fallback) {
+  try { return JSON.parse(s || 'null') || fallback; } catch(_) { return fallback; }
+}
+
+function parseCSV(text) {
+  var lines = text.trim().split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean);
+  if (lines.length < 2) return [];
+  var headers = lines[0].split(',').map(function(h){return h.replace(/^"|"$/g,'').trim();});
+  return lines.slice(1).map(function(line){
+    var vals = [], cur = '', inQ = false;
+    for (var i = 0; i < line.length; i++) {
+      var c = line[i];
+      if (c === '"') { inQ = !inQ; continue; }
+      if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ''; continue; }
+      cur += c;
+    }
+    vals.push(cur.trim());
+    var obj = {};
+    headers.forEach(function(h, i){ obj[h] = vals[i] !== undefined ? vals[i] : ''; });
+    return obj;
+  });
+}
+
+async function loadConfig() {
+  async function spFile(relPath) {
+    var fileUrl = SP_APP_RELPATH + relPath;
+    var r = await spFetch(SP_API + "/web/GetFileByServerRelativeUrl('" + fileUrl + "')/$value");
+    if (!r.ok) throw new Error('File not found: ' + relPath + ' (' + r.status + ')');
+    return r.text();
+  }
+  var results = await Promise.all([ spFile('/data/team.csv'), spFile('/data/milestones.csv') ]);
+  return {
+    team: parseCSV(results[0])
+      .map(function(r){ return { id: String(r.id||'').trim(), name: (r.name||'').trim() }; })
+      .filter(function(m){ return m.id && m.name; }),
+    milestones: parseCSV(results[1])
+      .map(function(r){ return { id: String(r.id||'').trim(), title: (r.title||'').trim(), status: (r.status||'Active').trim() }; })
+      .filter(function(m){ return m.id && m.title; })
+  };
+}
+
+function itemToUserData(item) {
+  return {
+    _spId:         item.Id,
+    userId:        item.Title || '',
+    name:          item.UserName || '',
+    weekOf:        item.WeekOf || '',
+    submitted:     !!item.Submitted,
+    submittedAt:   item.SubmittedAt || null,
+    tasks:         safeJSON(item.TasksJson, []),
+    nextWeekPlans: safeJSON(item.NextWeekPlansJson, [])
+  };
+}
+
+async function loadUserWeek(userId, weekOf) {
+  var items = await spGetItems('MeetingWeeklyData',
+    "Title eq '" + userId + "' and WeekOf eq '" + weekOf + "'");
+  if (!items.length) return { userId: userId, weekOf: weekOf, submitted: false, tasks: [], nextWeekPlans: [] };
+  return itemToUserData(items[0]);
+}
+
+async function saveUserWeek(data) {
+  var item = {
+    Title:             data.userId,
+    WeekOf:            data.weekOf,
+    UserName:          data.name || '',
+    TasksJson:         JSON.stringify(data.tasks || []),
+    NextWeekPlansJson: JSON.stringify(data.nextWeekPlans || []),
+    Submitted:         !!data.submitted,
+    SubmittedAt:       data.submittedAt || ''
+  };
+  if (data._spId) {
+    await spMerge('MeetingWeeklyData', data._spId, item);
+  } else {
+    var created = await spCreate('MeetingWeeklyData', item);
+    data._spId = created.Id;
+  }
+}
+
+async function loadFocusSP(weekOf) {
+  var items = await spGetItems('MeetingFocus', "Title eq '" + weekOf + "'");
+  if (!items.length) return { weekOf: weekOf, focus: '', priorities: [] };
+  var item = items[0];
+  return { _spId: item.Id, weekOf: item.Title, focus: item.Focus || '', priorities: safeJSON(item.PrioritiesJson, []) };
+}
+
+// ── App state ─────────────────────────────────────────────────────────────────
+var config    = { milestones: [], team: [] };
+var userData  = { userId:'', name:'', weekOf:'', submitted:false, tasks:[], nextWeekPlans:[] };
+var focusData = { focus:'', priorities:[] };
+var prevPlans = [];
+var importedPlanIds = {};
+var activeTab = 'All', editingId = null, modalMode = 'task', dragSrcId = null;
+var todayMonday = getWeekSunday(new Date());
+var viewMonday  = getWeekSunday(new Date());
+
+// ── Date ──────────────────────────────────────────────────────────────────────
+function getWeekSunday(d) {
+  var date = new Date(d), day = date.getDay();
+  var daysToMonday = (1 - day + 7) % 7;
+  date.setDate(date.getDate() + daysToMonday - 1);
+  date.setHours(0,0,0,0); return date;
+}
+function weekStr(m) { return m.getFullYear()+'-'+pad(m.getMonth()+1)+'-'+pad(m.getDate()); }
+function pad(n) { return String(n).padStart(2,'0'); }
+function fmtWeek(m) {
+  var e = new Date(m); e.setDate(m.getDate()+6);
+  var f = function(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
+  return f(m)+' – '+f(e)+', '+e.getFullYear();
+}
+function fmtDate(s) { return s ? new Date(s+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : ''; }
+function isOverdue(s) { return s && new Date(s+'T23:59:59') < new Date(); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function isCurrentWeek() { return weekStr(viewMonday) === weekStr(todayMonday); }
+function weekMode() {
+  var v = weekStr(viewMonday), t = weekStr(todayMonday);
+  if (v === t) return 'current';
+  return v < t ? 'past' : 'future';
+}
+
+// ── Week navigation ───────────────────────────────────────────────────────────
+function shiftWeek(delta) {
+  var d = new Date(viewMonday);
+  d.setDate(d.getDate() + delta*7);
+  viewMonday = d;
+  reloadForWeek();
+}
+function goToday() { viewMonday = getWeekSunday(new Date()); reloadForWeek(); }
+async function reloadForWeek() {
+  activeTab = 'All';
+  importedPlanIds = {};
+  var saved = getSavedUser();
+  if (saved) {
+    await Promise.all([loadUserData(saved), loadFocus(), loadPrevPlans(saved)]);
+    renderPage();
+  }
+}
+
+// ── Data ───────────────────────────────────────────────────────────────────────
+async function loadUserData(member) {
+  var week = weekStr(viewMonday);
+  var d = await loadUserWeek(member.id, week);
+  userData = Object.assign({ userId:member.id, name:member.name, weekOf:week, submitted:false, tasks:[], nextWeekPlans:[] }, d);
+  if (!userData.name)          userData.name = member.name;
+  if (!userData.nextWeekPlans) userData.nextWeekPlans = [];
+}
+async function loadFocus() {
+  focusData = await loadFocusSP(weekStr(viewMonday));
+}
+async function loadPrevPlans(member) {
+  var prev = new Date(viewMonday);
+  prev.setDate(prev.getDate() - 7);
+  try {
+    var d = await loadUserWeek((member||getSavedUser()||{}).id, weekStr(prev));
+    prevPlans = (d && d.nextWeekPlans) ? d.nextWeekPlans : [];
+  } catch(_) { prevPlans = []; }
+}
+async function saveUserData() {
+  await saveUserWeek(userData);
+}
+
+// ── Name selection ─────────────────────────────────────────────────────────────
+function getSavedUser() {
+  try { return JSON.parse(localStorage.getItem('wm_user') || 'null'); } catch(_) { return null; }
+}
+function saveUser(u) { localStorage.setItem('wm_user', JSON.stringify(u)); }
+
+function showNameModal() {
+  var sel = document.getElementById('name-select');
+  sel.innerHTML = '<option value="">— Select your name —</option>';
+  config.team.forEach(function(m){
+    var o = document.createElement('option');
+    o.value = m.id; o.textContent = m.name; sel.appendChild(o);
+  });
+  document.getElementById('name-overlay').classList.add('open');
+}
+async function confirmName() {
+  var sel = document.getElementById('name-select');
+  var id = sel.value;
+  if (!id) { alert('Please select your name.'); return; }
+  var member = config.team.find(function(m){ return m.id===id; });
+  saveUser(member);
+  document.getElementById('name-overlay').classList.remove('open');
+  await loadUserData(member);
+  await loadFocus();
+  renderPage();
+}
+function changeName() { localStorage.removeItem('wm_user'); showNameModal(); }
+
+// ── Render ─────────────────────────────────────────────────────────────────────
+var TABS = ['All','Completed','In Progress','Stuck','Postponed by Management','Planned'];
+var PILL_STYLE = {
+  'Completed':              'background:#dff6dd;color:#107c10',
+  'In Progress':            'background:#deecf9;color:#0078d4',
+  'Stuck':                  'background:#fde7e9;color:#d13438',
+  'Planned':                'background:#f3f2f1;color:#605e5c',
+  'Postponed by Management':'background:#fff4ce;color:#8a5e00'
+};
+
+function renderNav() {
+  var mode = weekMode();
+  var nextWeekLabel = fmtWeekShort(new Date(viewMonday.getTime() + 7*24*60*60*1000));
+  document.getElementById('week-nav-label').textContent = fmtWeek(viewMonday) + (mode==='current' ? ' (current)' : '');
+  document.getElementById('btn-next-week').disabled = false;
+  document.getElementById('btn-today').style.display = mode==='current' ? 'none' : '';
+  var banner  = document.getElementById('arc-banner');
+  var prepBar = document.getElementById('prep-bar');
+  if (mode === 'past') {
+    banner.style.cssText = 'display:block;background:#e1f0ff;border-color:#c7e0f4;color:#0078d4';
+    banner.textContent = '📅 Archive view — this is a past week. Tasks are read-only.';
+    prepBar.style.display = 'none';
+  } else if (mode === 'future') {
+    banner.style.cssText = 'display:block;background:#fff4ce;border-color:#f0d96a;color:#8a5e00';
+    banner.textContent = '📋 Prep mode — you\'re preparing for ' + fmtWeek(viewMonday) + '. Changes save automatically.';
+    prepBar.style.display = 'none';
+  } else {
+    banner.style.display = 'none';
+    prepBar.style.display = '';
+    prepBar.querySelector('.prep-bar-text').innerHTML =
+      'Next meeting week: <strong>' + nextWeekLabel + '</strong> — add tasks and priorities before the meeting';
+  }
+}
+function goNextWeek() {
+  var d = new Date(viewMonday); d.setDate(d.getDate() + 7);
+  viewMonday = d; reloadForWeek();
+}
+function fmtWeekShort(m) {
+  var mon = new Date(m); mon.setDate(m.getDate() + 1);
+  var fri = new Date(mon); fri.setDate(mon.getDate() + 4);
+  var f = function(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
+  return f(mon) + ' – ' + f(fri);
+}
+function renderTabs() {
+  document.getElementById('tabs').innerHTML = TABS.map(function(s){
+    var n = s==='All' ? userData.tasks.length : userData.tasks.filter(function(t){return t.status===s;}).length;
+    if (s!=='All' && n===0) return '';
+    return '<button class="tab'+(activeTab===s?' active':'')+'" onclick="setTab(\''+s.replace(/'/g,"\\'")+'\')">'
+      +esc(s)+(s!=='All'?'<span class="tab-n">('+n+')</span>':'')+'</button>';
+  }).join('');
+}
+function renderTasks() {
+  var visible = activeTab==='All' ? userData.tasks : userData.tasks.filter(function(t){return t.status===activeTab;});
+  var el = document.getElementById('task-list');
+  var ro = userData.submitted || weekMode() === 'past';
+  var canDrag = !ro && activeTab === 'All';
+  if (!visible.length) {
+    el.innerHTML = '<div class="empty">'+(activeTab==='All'?'No tasks this week.':'No '+esc(activeTab)+' tasks.')+'</div>';
+    return;
+  }
+  el.innerHTML = visible.map(function(t){
+    var ms = config.milestones.find(function(m){return m.id===t.milestoneId;});
+    var over = !ro && isOverdue(t.deadline) && t.status!=='Completed';
+    var msHtml   = ms ? '<span class="ms-tag">'+esc(ms.title)+'</span>' : '';
+    var dlHtml   = t.deadline ? '<span style="color:'+(over?'#d13438':'#605e5c')+';font-weight:'+(over?600:400)+'">Due: '+fmtDate(t.deadline)+(over?' ⚠':'')+'</span>' : '';
+    var noteHtml = t.notes ? '<span style="font-style:italic;color:#a19f9d">'+esc(t.notes.substring(0,60))+(t.notes.length>60?'…':'')+'</span>' : '';
+    var acts = ro ? '' :
+      '<div class="task-actions">'+
+        '<button class="btn btn-outline btn-sm" onclick="openModal(\''+t.id+'\')">Edit</button>'+
+        '<button class="btn btn-danger btn-sm" onclick="delTask(\''+t.id+'\')">Delete</button>'+
+      '</div>';
+    var da = canDrag ?
+      ' draggable="true" data-drag-id="'+t.id+'"'+
+      ' ondragstart="onDragStart(event,\''+t.id+'\',\'tasks\')"'+
+      ' ondragover="onDragOver(event,\''+t.id+'\')"'+
+      ' ondrop="onDrop(event,\''+t.id+'\',\'tasks\')"'+
+      ' ondragleave="onDragLeave(event)"'+
+      ' ondragend="onDragEnd()"' : '';
+    return '<div class="task-row"'+da+'>'+
+      (canDrag ? '<span class="drag-handle" title="Drag to reorder">⠿</span>' : '')+
+      '<span class="pill" style="'+PILL_STYLE[t.status]+'">'+esc(t.status)+'</span>'+
+      '<div class="task-info">'+
+        '<div class="task-title">'+esc(t.title)+'</div>'+
+        '<div class="task-meta">'+msHtml+dlHtml+noteHtml+'</div>'+
+      '</div>'+acts+'</div>';
+  }).join('');
+}
+function renderNextWeekPlans() {
+  var card = document.getElementById('nwp-card');
+  var plans = userData.nextWeekPlans || [];
+  var ro = userData.submitted || weekMode() === 'past';
+  card.style.display = weekMode() === 'current' ? 'block' : 'none';
+  document.getElementById('btn-add-nwp').style.display = ro ? 'none' : '';
+  var el = document.getElementById('nwp-list');
+  if (!plans.length) {
+    el.innerHTML = '<div class="empty">No plans yet.'+(ro?'':' Add what you plan to work on next week.')+'</div>';
+    return;
+  }
+  var canDragNwp = !ro;
+  el.innerHTML = plans.map(function(p){
+    var ms = config.milestones.find(function(m){return m.id===p.milestoneId;});
+    var acts = ro ? '' :
+      '<div class="task-actions">'+
+        '<button class="btn btn-danger btn-sm" onclick="delNextWeekPlan(\''+p.id+'\')">Delete</button>'+
+      '</div>';
+    var da = canDragNwp ?
+      ' draggable="true" data-drag-id="'+p.id+'"'+
+      ' ondragstart="onDragStart(event,\''+p.id+'\',\'nwp\')"'+
+      ' ondragover="onDragOver(event,\''+p.id+'\')"'+
+      ' ondrop="onDrop(event,\''+p.id+'\',\'nwp\')"'+
+      ' ondragleave="onDragLeave(event)"'+
+      ' ondragend="onDragEnd()"' : '';
+    return '<div class="task-row"'+da+'>'+
+      (canDragNwp ? '<span class="drag-handle" title="Drag to reorder">⠿</span>' : '')+
+      '<span class="pill" style="background:#e1f0ff;color:#0078d4">→ Planned</span>'+
+      '<div class="task-info">'+
+        '<div class="task-title">'+esc(p.title)+'</div>'+
+        (ms?'<div class="task-meta"><span class="ms-tag">'+esc(ms.title)+'</span></div>':'')+
+      '</div>'+acts+'</div>';
+  }).join('');
+}
+function renderPrevPlans() {
+  var card = document.getElementById('prev-plans-card');
+  var mode = weekMode();
+  var ro = userData.submitted || mode === 'past';
+  var unimported = prevPlans.filter(function(p){ return !importedPlanIds[p.id]; });
+  if (mode === 'past' || !prevPlans.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  var prevMonday = new Date(viewMonday); prevMonday.setDate(prevMonday.getDate() - 7);
+  document.getElementById('prev-plans-hint').textContent =
+    'These tasks were planned during the week of ' + fmtWeekShort(prevMonday) + '.';
+  document.getElementById('btn-import-all').style.display = (!ro && unimported.length > 1) ? '' : 'none';
+  document.getElementById('prev-plans-list').innerHTML = prevPlans.map(function(p) {
+    var ms = config.milestones.find(function(m){ return m.id === p.milestoneId; });
+    var done = !!importedPlanIds[p.id];
+    var alreadyHas = userData.tasks.some(function(t){ return t.title === p.title; });
+    var added = done || alreadyHas;
+    return '<div class="task-row">'+
+      '<span class="pill" style="background:#e1f0ff;color:#0078d4">→ Planned</span>'+
+      '<div class="task-info">'+
+        '<div class="task-title">'+esc(p.title)+'</div>'+
+        (ms ? '<div class="task-meta"><span class="ms-tag">'+esc(ms.title)+'</span></div>' : '')+
+      '</div>'+
+      (!ro ? '<div class="task-actions">'+(added
+        ? '<span style="font-size:12px;color:#107c10;font-weight:600">✓ Added</span>'
+        : '<button class="btn btn-outline btn-sm" onclick="importPlan(\''+p.id+'\')">+ Add as task</button>'
+      )+'</div>' : '')+
+    '</div>';
+  }).join('');
+}
+async function importPlan(planId) {
+  var plan = prevPlans.find(function(p){ return p.id === planId; });
+  if (!plan) return;
+  userData.tasks.push({ id: uid(), title: plan.title, status: 'Planned',
+    milestoneId: plan.milestoneId || null, deadline: null, notes: '' });
+  importedPlanIds[planId] = true;
+  try { await saveUserData(); renderPage(); }
+  catch(e) { showBanner(e.message, 'err'); }
+}
+async function importAllPlans() {
+  var toImport = prevPlans.filter(function(p){
+    return !importedPlanIds[p.id] && !userData.tasks.some(function(t){ return t.title === p.title; });
+  });
+  toImport.forEach(function(p){
+    userData.tasks.push({ id: uid(), title: p.title, status: 'Planned',
+      milestoneId: p.milestoneId || null, deadline: null, notes: '' });
+    importedPlanIds[p.id] = true;
+  });
+  try { await saveUserData(); renderPage(); }
+  catch(e) { showBanner(e.message, 'err'); }
+}
+function renderPage() {
+  var mode = weekMode();
+  document.getElementById('user-name').textContent = userData.name;
+  var badge = document.getElementById('status-badge');
+  if (mode === 'past') {
+    badge.textContent = '📅 Archive'; badge.className = 'badge badge-arc';
+  } else if (mode === 'future') {
+    badge.textContent = '📋 Preparing'; badge.className = 'badge badge-arc';
+  } else {
+    badge.textContent = userData.submitted ? '✓ Submitted' : 'Not submitted';
+    badge.className = 'badge '+(userData.submitted ? 'badge-ok' : 'badge-warn');
+  }
+  var canEdit = (mode === 'current' || mode === 'future') && !userData.submitted;
+  document.getElementById('btn-add').style.display = canEdit ? '' : 'none';
+  document.getElementById('submit-bar').style.display   = (mode === 'current' && !userData.submitted) ? '' : 'none';
+  document.getElementById('reopen-bar').style.display   = (mode === 'current' && userData.submitted)  ? '' : 'none';
+  if (mode === 'current' && !userData.submitted) {
+    var bs = document.getElementById('btn-submit');
+    bs.disabled = userData.tasks.length===0;
+    document.getElementById('submit-hint').textContent = userData.tasks.length===0
+      ? 'Add at least one task to submit.'
+      : userData.tasks.length+' task'+(userData.tasks.length!==1?'s':'')+' will be submitted.';
+  }
+  renderNav();
+  renderPrevPlans(); renderTabs(); renderTasks(); renderNextWeekPlans();
+}
+function setTab(t) { activeTab = t; renderTabs(); renderTasks(); }
+
+// ── Task modal ─────────────────────────────────────────────────────────────────
+function restoreModalRows() {
+  ['row-status','row-deadline','row-notes'].forEach(function(id){ document.getElementById(id).style.display=''; });
+}
+function openModal(id) {
+  modalMode = 'task'; restoreModalRows();
+  editingId = id || null;
+  var t = id ? userData.tasks.find(function(x){return x.id===id;}) : null;
+  document.getElementById('modal-title').textContent = t ? 'Edit Task' : 'Add Task';
+  document.getElementById('f-title').value     = t ? t.title   : '';
+  document.getElementById('f-status').value    = t ? t.status  : 'Planned';
+  document.getElementById('f-milestone').value = t ? (t.milestoneId||'') : '';
+  document.getElementById('f-deadline').value  = t ? (t.deadline||'') : '';
+  document.getElementById('f-notes').value     = t ? (t.notes||'') : '';
+  document.getElementById('e-title').textContent = '';
+  document.getElementById('e-milestone').textContent = '';
+  document.getElementById('task-overlay').classList.add('open');
+  document.getElementById('f-title').focus();
+}
+function openNWPModal() {
+  modalMode = 'plan'; editingId = null; restoreModalRows();
+  document.getElementById('row-status').style.display   = 'none';
+  document.getElementById('row-deadline').style.display = 'none';
+  document.getElementById('row-notes').style.display    = 'none';
+  document.getElementById('modal-title').textContent   = 'Add Next Week Plan';
+  document.getElementById('f-title').value             = '';
+  document.getElementById('f-milestone').value         = '';
+  document.getElementById('e-title').textContent       = '';
+  document.getElementById('e-milestone').textContent   = '';
+  document.getElementById('task-overlay').classList.add('open');
+  document.getElementById('f-title').focus();
+}
+function closeTaskModal() {
+  document.getElementById('task-overlay').classList.remove('open');
+  editingId = null; modalMode = 'task'; restoreModalRows();
+}
+
+// ── Drag to reorder ───────────────────────────────────────────────────────────
+function onDragStart(e, id, list) { dragSrcId = id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', id); }
+function onDragOver(e, id) {
+  e.preventDefault();
+  if (id === dragSrcId) return;
+  document.querySelectorAll('.task-row').forEach(function(r){ r.classList.remove('drag-over-top','drag-over-bottom'); });
+  var row = e.target.closest('.task-row');
+  if (!row) return;
+  var rect = row.getBoundingClientRect();
+  row.classList.add(e.clientY < rect.top + rect.height/2 ? 'drag-over-top' : 'drag-over-bottom');
+}
+function onDragLeave(e) { var row = e.target.closest('.task-row'); if (row) row.classList.remove('drag-over-top','drag-over-bottom'); }
+function onDragEnd() {
+  document.querySelectorAll('.task-row').forEach(function(r){ r.classList.remove('drag-over-top','drag-over-bottom','dragging'); });
+  dragSrcId = null;
+}
+async function onDrop(e, targetId, list) {
+  e.preventDefault();
+  if (!dragSrcId || dragSrcId === targetId) { onDragEnd(); return; }
+  var arr = list === 'nwp' ? userData.nextWeekPlans : userData.tasks;
+  var srcIdx = arr.findIndex(function(t){ return t.id === dragSrcId; });
+  var tgtIdx = arr.findIndex(function(t){ return t.id === targetId; });
+  if (srcIdx === -1 || tgtIdx === -1) { onDragEnd(); return; }
+  var row = e.target.closest('.task-row');
+  var insertAfter = row && row.classList.contains('drag-over-bottom');
+  var item = arr.splice(srcIdx, 1)[0];
+  var newTgt = arr.findIndex(function(t){ return t.id === targetId; });
+  arr.splice(insertAfter ? newTgt + 1 : newTgt, 0, item);
+  onDragEnd();
+  try { await saveUserData(); renderPage(); }
+  catch(err) { showBanner('Failed to save order: ' + err.message, 'err'); }
+}
+
+// ── CRUD ───────────────────────────────────────────────────────────────────────
+async function saveTask() {
+  if (modalMode === 'plan') { await saveNextWeekPlan(); return; }
+  var title = document.getElementById('f-title').value.trim();
+  var msId  = document.getElementById('f-milestone').value;
+  document.getElementById('e-title').textContent    = title ? '' : 'Title is required.';
+  document.getElementById('e-milestone').textContent = msId  ? '' : 'Please select a milestone.';
+  if (!title || !msId) return;
+  var task = {
+    id: editingId || uid(), title: title,
+    status: document.getElementById('f-status').value,
+    milestoneId: msId,
+    deadline: document.getElementById('f-deadline').value || null,
+    notes: document.getElementById('f-notes').value.trim()
+  };
+  if (editingId) {
+    userData.tasks = userData.tasks.map(function(t){ return t.id===editingId ? task : t; });
+  } else {
+    userData.tasks.push(task);
+  }
+  var btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try { await saveUserData(); closeTaskModal(); renderPage(); }
+  catch(e) { showBanner(e.message,'err'); }
+  finally { btn.disabled = false; btn.textContent = 'Save'; }
+}
+async function delTask(id) {
+  if (!confirm('Delete this task?')) return;
+  userData.tasks = userData.tasks.filter(function(t){ return t.id!==id; });
+  try { await saveUserData(); renderPage(); }
+  catch(e) { showBanner(e.message,'err'); }
+}
+async function saveNextWeekPlan() {
+  var title = document.getElementById('f-title').value.trim();
+  var msId  = document.getElementById('f-milestone').value;
+  document.getElementById('e-title').textContent    = title ? '' : 'Title is required.';
+  document.getElementById('e-milestone').textContent = msId  ? '' : 'Please select a milestone.';
+  if (!title || !msId) return;
+  userData.nextWeekPlans.push({ id: uid(), title: title, milestoneId: msId });
+  var btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try { await saveUserData(); closeTaskModal(); renderNextWeekPlans(); }
+  catch(e) { showBanner(e.message,'err'); }
+  finally { btn.disabled = false; btn.textContent = 'Save'; }
+}
+async function delNextWeekPlan(id) {
+  if (!confirm('Delete this plan?')) return;
+  userData.nextWeekPlans = userData.nextWeekPlans.filter(function(p){ return p.id!==id; });
+  try { await saveUserData(); renderNextWeekPlans(); }
+  catch(e) { showBanner(e.message,'err'); }
+}
+async function reopenSubmission() {
+  if (!confirm('Reopen your submission for editing?\nYou will need to re-submit when done.')) return;
+  userData.submitted = false; userData.submittedAt = null;
+  try { await saveUserData(); renderPage(); showBanner('Update reopened — make your changes and re-submit.', 'ok'); }
+  catch(e) { showBanner(e.message, 'err'); }
+}
+async function submitUpdate() {
+  var btn = document.getElementById('btn-submit');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  userData.submitted = true;
+  userData.submittedAt = new Date().toISOString();
+  try { await saveUserData(); renderPage(); showBanner('✓ Your update has been submitted!','ok'); }
+  catch(e) { userData.submitted = false; showBanner(e.message,'err'); }
+  finally { btn.disabled = false; btn.textContent = 'Submit Weekly Update'; }
+}
+
+function showBanner(msg, type) {
+  var el = document.getElementById('banner');
+  el.className = 'banner banner-'+type; el.textContent = msg; el.style.display = 'block';
+  if (type==='ok') setTimeout(function(){ el.style.display='none'; }, 4000);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+async function init() {
+  await msalInstance.handleRedirectPromise().catch(function(){});
+  try {
+    config = await loadConfig();
+    config.milestones = config.milestones.map(function(m){ return Object.assign({}, m, {id: String(m.id)}); });
+    var sel = document.getElementById('f-milestone');
+    config.milestones.forEach(function(m){
+      var o = document.createElement('option'); o.value = m.id; o.textContent = m.title; sel.appendChild(o);
+    });
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    var saved = getSavedUser();
+    if (saved && config.team.find(function(m){ return m.id===saved.id; })) {
+      await Promise.all([loadUserData(saved), loadFocus(), loadPrevPlans(saved)]);
+      renderPage();
+    } else {
+      renderNav();
+      showNameModal();
+    }
+  } catch(e) {
+    document.getElementById('loading').innerHTML =
+      '<div style="color:#d13438;font-size:16px;font-weight:600">⚠ Cannot load app</div>'+
+      '<div style="margin-top:12px;font-size:14px;color:#605e5c">Make sure you are signed in to Microsoft 365 and that the SharePoint Lists have been created (run setup.html once).</div>'+
+      '<div style="margin-top:8px;font-size:13px;color:#a19f9d">'+esc(e.message)+'</div>';
+  }
+}
+init();
+</script>
+</body>
+</html>

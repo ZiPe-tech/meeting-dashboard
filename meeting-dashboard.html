@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weekly Meeting Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; color: #323130; min-height: 100vh; }
+    .app { max-width: 1400px; margin: 0 auto; padding: 24px 20px; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+    .page-header h1 { font-size: 24px; font-weight: 700; color: #0078d4; }
+    .sub { font-size: 13px; color: #605e5c; margin-top: 3px; }
+    .not-sub-bar { margin-top: 5px; font-size: 12px; color: #d13438; font-weight: 600; }
+    .btn-refresh { background: #fff; border: 1px solid #0078d4; color: #0078d4; border-radius: 6px; padding: 6px 16px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .btn-refresh:hover { background: #deecf9; }
+    .week-nav { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 8px; padding: 8px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 14px; }
+    .wn-btn { background: none; border: 1px solid #edebe9; border-radius: 5px; padding: 4px 12px; cursor: pointer; font-size: 13px; color: #323130; }
+    .wn-btn:hover { background: #f3f2f1; }
+    .wn-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .wn-label { flex: 1; text-align: center; font-size: 14px; font-weight: 600; }
+    .wn-today { font-size: 12px; background: #0078d4; color: #fff; border: none; border-radius: 5px; padding: 4px 12px; cursor: pointer; display: none; }
+    .focus-card { background: #fff8e1; border: 1px solid #f0d96a; border-radius: 8px; padding: 14px 20px; margin-bottom: 14px; }
+    .focus-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .focus-title { font-size: 11px; font-weight: 700; color: #7d6820; letter-spacing: .7px; text-transform: uppercase; }
+    .focus-edit-btn { font-size: 12px; background: none; border: 1px solid #c4a734; color: #7d6820; border-radius: 4px; padding: 2px 10px; cursor: pointer; }
+    .focus-main-text { font-size: 16px; font-weight: 700; color: #323130; margin-bottom: 10px; }
+    .focus-priorities { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+    .focus-priorities li { display: flex; align-items: baseline; gap: 10px; font-size: 14px; font-weight: 500; color: #323130; }
+    .focus-num { background: #7d6820; color: #fff; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; line-height: 1; }
+    .focus-empty { font-size: 13px; color: #a19f9d; font-style: italic; }
+    .focus-edit { display: none; }
+    .focus-edit textarea { width: 100%; padding: 7px 10px; border: 1px solid #c4a734; border-radius: 4px; font-size: 13px; font-family: inherit; resize: vertical; }
+    .fg-label { font-size: 12px; font-weight: 600; color: #7d6820; margin-bottom: 4px; margin-top: 8px; display: block; }
+    .focus-save-row { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
+    .focus-save-btn { background: #7d6820; color: #fff; border: none; border-radius: 4px; padding: 5px 14px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .focus-cancel-btn { background: #fff; border: 1px solid #8a8886; color: #323130; border-radius: 4px; padding: 5px 14px; cursor: pointer; font-size: 13px; }
+    .team-summary { display: flex; align-items: center; gap: 16px; background: #fff; border-radius: 8px; padding: 14px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 20px; flex-wrap: wrap; }
+    .ts-donut { flex-shrink: 0; }
+    .ts-stats { display: flex; gap: 24px; flex-wrap: wrap; }
+    .ts-stat { text-align: center; }
+    .ts-stat-val { font-size: 26px; font-weight: 700; display: block; line-height: 1; }
+    .ts-stat-lbl { font-size: 11px; color: #605e5c; margin-top: 2px; }
+    .ts-divider { width: 1px; background: #edebe9; align-self: stretch; }
+    .members-section { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+    .mc { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; border-left: 4px solid #edebe9; }
+    .mc.submitted { border-left-color: #107c10; }
+    .mc.has-stuck  { border-left-color: #d13438; }
+    .mc.nosub      { border-left-color: #a19f9d; opacity: .85; }
+    .mc-hdr { display: flex; align-items: center; gap: 12px; padding: 12px 18px; background: #faf9f8; border-bottom: 1px solid #f3f2f1; cursor: pointer; user-select: none; }
+    .avatar { border-radius: 50%; background: #0078d4; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+    .mc-name { font-size: 15px; font-weight: 700; flex: 1; }
+    .mc-sub-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+    .mc-sub-badge.yes { background: #dff6dd; color: #107c10; }
+    .mc-sub-badge.no  { background: #f3f2f1; color: #a19f9d; }
+    .mc-pct { font-size: 22px; font-weight: 800; min-width: 52px; text-align: right; flex-shrink: 0; }
+    .mc-pill-row { display: flex; gap: 6px; flex-shrink: 0; }
+    .mc-pill { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+    .mc-pill.done { background: #dff6dd; color: #107c10; }
+    .mc-pill.ip   { background: #deecf9; color: #0078d4; }
+    .mc-pill.sk   { background: #fde7e9; color: #d13438; }
+    .mc-pill.pm   { background: #fff4ce; color: #8a5e00; }
+    .mc-pill.pl   { background: #f3f2f1; color: #605e5c; }
+    .mc-toggle { font-size: 12px; color: #a19f9d; margin-left: 4px; flex-shrink: 0; }
+    .mc-body { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; }
+    @media(max-width:900px) { .mc-body { grid-template-columns: 1fr 1fr; } }
+    @media(max-width:600px) { .mc-body { grid-template-columns: 1fr; } }
+    .mc-col { padding: 14px 18px; }
+    .mc-col + .mc-col { border-left: 1px solid #f3f2f1; }
+    .mc-col-hdr { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+    .mc-col-hdr.col-done   { color: #107c10; }
+    .mc-col-hdr.col-open   { color: #0078d4; }
+    .mc-col-hdr.col-nwp    { color: #6264a7; }
+    .mc-col-cnt { font-size: 11px; background: #f3f2f1; color: #605e5c; padding: 1px 6px; border-radius: 8px; font-weight: 600; margin-left: auto; }
+    .task-item { display: flex; align-items: flex-start; gap: 7px; padding: 5px 0; border-bottom: 1px solid #f9f8f7; position: relative; }
+    .task-item:last-child { border-bottom: none; }
+    .task-item.dragging { opacity: .35; }
+    .task-item.drag-over-top { box-shadow: 0 -2px 0 0 #0078d4; }
+    .task-item.drag-over-bottom { box-shadow: 0 2px 0 0 #0078d4; }
+    .task-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+    .task-dot.done { background: #107c10; }
+    .task-dot.ip   { background: #0078d4; }
+    .task-dot.sk   { background: #d13438; }
+    .task-dot.pm   { background: #e8a000; }
+    .task-dot.pl   { background: #c8c6c4; }
+    .task-dot.nwp  { background: #6264a7; }
+    .task-text { font-size: 13px; line-height: 1.35; flex: 1; }
+    .task-status-lbl { font-size: 10px; font-weight: 600; white-space: nowrap; padding: 1px 5px; border-radius: 3px; }
+    .task-status-lbl.ip { background: #deecf9; color: #0078d4; }
+    .task-status-lbl.sk { background: #fde7e9; color: #d13438; }
+    .task-status-lbl.pm { background: #fff4ce; color: #8a5e00; }
+    .task-status-lbl.pl { background: #f3f2f1; color: #605e5c; }
+    .task-ms { font-size: 10px; color: #8a8886; background: #f3f2f1; padding: 1px 5px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; }
+    .task-empty { font-size: 12px; color: #c8c6c4; font-style: italic; padding: 4px 0; }
+    .ti-handle { cursor: grab; color: #c8c6c4; font-size: 16px; padding-right: 4px; flex-shrink: 0; user-select: none; line-height: 1; }
+    .ti-handle:active { cursor: grabbing; }
+    .ti-actions { display: none; gap: 4px; margin-left: auto; flex-shrink: 0; }
+    .task-item:hover .ti-actions { display: flex; }
+    .ti-btn { font-size: 11px; padding: 1px 7px; border-radius: 3px; cursor: pointer; font-weight: 600; border: 1px solid; line-height: 1.6; }
+    .ti-btn-edit { background: #fff; border-color: #8a8886; color: #323130; }
+    .ti-btn-edit:hover { background: #f3f2f1; }
+    .ti-btn-del { background: #fff; border-color: #d13438; color: #d13438; }
+    .ti-btn-del:hover { background: #fde7e9; }
+    .card { background: #fff; border-radius: 8px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 14px; }
+    .card-title { font-size: 11px; font-weight: 700; color: #605e5c; letter-spacing: .7px; text-transform: uppercase; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 6px 8px; color: #605e5c; font-weight: 600; border-bottom: 2px solid #edebe9; white-space: nowrap; font-size: 12px; }
+    td { padding: 7px 8px; border-bottom: 1px solid #f3f2f1; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .pbar-bg { background: #edebe9; border-radius: 4px; height: 6px; width: 80px; }
+    .pbar-fill { height: 6px; border-radius: 4px; }
+    .loading { text-align: center; padding: 80px; color: #605e5c; font-size: 16px; }
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 999; align-items: center; justify-content: center; }
+    .overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 8px; padding: 24px 28px; width: 460px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+    .modal h2 { font-size: 17px; margin-bottom: 6px; }
+    .modal-sub { font-size: 12px; color: #605e5c; margin-bottom: 16px; }
+    .fg { margin-bottom: 12px; }
+    .fg label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+    .fg input, .fg select, .fg textarea { width: 100%; padding: 6px 9px; border: 1px solid #8a8886; border-radius: 4px; font-size: 13px; font-family: inherit; }
+    .fg input:focus, .fg select:focus, .fg textarea:focus { outline: none; border-color: #0078d4; }
+    .err-txt { color: #d13438; font-size: 11px; margin-top: 2px; min-height: 14px; }
+    .mf { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+    .mf-right { display: flex; gap: 8px; }
+    .btn-save-de { background: #0078d4; color: #fff; border: none; border-radius: 4px; padding: 6px 16px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .btn-cancel-de { background: #fff; border: 1px solid #8a8886; border-radius: 4px; padding: 6px 16px; cursor: pointer; font-size: 13px; }
+    .btn-del-de { background: #fff; color: #d13438; border: 1px solid #d13438; border-radius: 4px; padding: 6px 14px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  </style>
+  <script src="https://alcdn.msauth.net/browser/2.39.0/js/msal-browser.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <div id="loading" class="loading">Loading dashboard…</div>
+  <div id="main" style="display:none">
+    <div class="page-header">
+      <div>
+        <h1>Weekly Team Meeting</h1>
+        <div class="sub" id="week-lbl"></div>
+        <div class="not-sub-bar" id="not-sub"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-refresh" onclick="reload()">↺ Refresh</button>
+        <button class="btn-refresh" style="background:#107c10;color:#fff;border-color:#107c10" onclick="exportSummary()">&#128196; Export Summary</button>
+      </div>
+    </div>
+    <div class="week-nav">
+      <button class="wn-btn" onclick="shiftWeek(-1)">← Prev</button>
+      <span class="wn-label" id="wn-label"></span>
+      <button class="wn-btn" id="wn-next" onclick="shiftWeek(1)">Next →</button>
+      <button class="wn-today" id="wn-today" onclick="goToday()">Today</button>
+    </div>
+    <div class="focus-card" id="focus-card">
+      <div class="focus-hdr">
+        <span class="focus-title">📌 Weekly Focus & Priority</span>
+        <button class="focus-edit-btn" id="focus-edit-btn" onclick="startEditFocus()">✎ Edit</button>
+      </div>
+      <div id="focus-view">
+        <div class="focus-main-text" id="focus-main-text"></div>
+        <ul class="focus-priorities" id="focus-priorities-list"></ul>
+        <div class="focus-empty" id="focus-empty" style="display:none">No focus set for this week. Click Edit to add.</div>
+      </div>
+      <div class="focus-edit" id="focus-edit-panel">
+        <label class="fg-label">Weekly Focus (headline)</label>
+        <textarea id="fe-focus" rows="2" placeholder="e.g. Application Release with LOD"></textarea>
+        <label class="fg-label">Priorities (one per line)</label>
+        <textarea id="fe-priorities" rows="5" placeholder="1.5.4 Release&#10;EIC submission&#10;..."></textarea>
+        <div class="focus-save-row">
+          <button class="focus-cancel-btn" onclick="cancelEditFocus()">Cancel</button>
+          <button class="focus-save-btn" onclick="saveFocus()">Save Focus</button>
+        </div>
+      </div>
+    </div>
+    <div class="team-summary" id="team-summary"></div>
+    <div class="members-section" id="members-section"></div>
+    <div class="card" id="ms-card" style="display:none"></div>
+  </div>
+</div>
+
+<div class="overlay" id="de-overlay" onclick="if(event.target===this)closeDashEdit()">
+  <div class="modal">
+    <h2 id="de-title-hdr">Edit Task</h2>
+    <div class="modal-sub" id="de-member-lbl"></div>
+    <div class="fg">
+      <label>Title *</label>
+      <input id="de-title" type="text" />
+      <div class="err-txt" id="de-err-title"></div>
+    </div>
+    <div class="fg" id="de-row-status">
+      <label>Status</label>
+      <select id="de-status">
+        <option value="Planned">Planned</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Completed">Completed</option>
+        <option value="Stuck">Stuck</option>
+        <option value="Postponed by Management">Postponed by Management</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Milestone</label>
+      <select id="de-milestone"><option value="">— None —</option></select>
+    </div>
+    <div class="fg" id="de-row-deadline">
+      <label>Deadline (optional)</label>
+      <input id="de-deadline" type="date" />
+    </div>
+    <div class="fg" id="de-row-notes">
+      <label>Notes (optional)</label>
+      <textarea id="de-notes" style="height:60px;resize:vertical"></textarea>
+    </div>
+    <div class="mf">
+      <button class="btn-del-de" onclick="delDashTask()">Delete</button>
+      <div class="mf-right">
+        <button class="btn-cancel-de" onclick="closeDashEdit()">Cancel</button>
+        <button class="btn-save-de" onclick="saveDashEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SharePoint configuration ──────────────────────────────────────────────────
+var SP_SITE = 'https://xtrodes.sharepoint.com/sites/X-trodes';
+var SP_API  = SP_SITE + '/_api';
+// UPDATE THIS PATH after uploading the app folder to SharePoint:
+var SP_APP_RELPATH = '/sites/X-trodes/Shared Documents/General/Management SW/sharepoint-app';
+
+// ── SharePoint API helpers ────────────────────────────────────────────────────
+// ── MSAL authentication ────────────────────────────────────────────────────────
+var MSAL_CONFIG = {
+  auth: {
+    clientId: '0f683555-282e-4228-95cc-22adb2581b3d',  // ← paste your Azure AD App (client) ID here
+    authority: 'https://login.microsoftonline.com/xtrodes.onmicrosoft.com',
+    redirectUri: 'https://zipe-tech.github.io/meeting-dashboard/blank.html'
+  },
+  cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false }
+};
+var SP_SCOPES = ['https://xtrodes.sharepoint.com/AllSites.Write'];
+var msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+
+async function getToken() {
+  var accounts = msalInstance.getAllAccounts();
+  if (accounts.length === 0) {
+    await msalInstance.loginPopup({ scopes: SP_SCOPES });
+    accounts = msalInstance.getAllAccounts();
+  }
+  try {
+    var resp = await msalInstance.acquireTokenSilent({ scopes: SP_SCOPES, account: accounts[0] });
+    return resp.accessToken;
+  } catch(e) {
+    var resp = await msalInstance.acquireTokenPopup({ scopes: SP_SCOPES, account: accounts[0] });
+    return resp.accessToken;
+  }
+}
+
+async function spFetch(url, opts) {
+  var token = await getToken();
+  opts = opts || {};
+  opts.headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+  return fetch(url, opts);
+}
+
+// ── SharePoint API helpers ─────────────────────────────────────────────────────
+async function spGetItems(listName, filter) {
+  var url = SP_API + "/web/lists/getbytitle('" + listName + "')/items?$top=500";
+  if (filter) url += '&$filter=' + encodeURIComponent(filter);
+  var r = await spFetch(url, { headers: { 'Accept': 'application/json;odata=nometadata' } });
+  if (!r.ok) throw new Error('SharePoint read error ' + r.status);
+  return (await r.json()).value;
+}
+
+async function spCreate(listName, data) {
+  var r = await spFetch(SP_API + "/web/lists/getbytitle('" + listName + "')/items", {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json;odata=nometadata',
+      'Content-Type': 'application/json;odata=nometadata'
+    },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) { var t = await r.text(); throw new Error('SharePoint create error ' + r.status + ': ' + t.substring(0,200)); }
+  return r.json();
+}
+
+async function spMerge(listName, itemId, data) {
+  var r = await spFetch(SP_API + "/web/lists/getbytitle('" + listName + "')/items(" + itemId + ")", {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json;odata=nometadata',
+      'Content-Type': 'application/json;odata=nometadata',
+      'X-HTTP-Method': 'MERGE',
+      'IF-MATCH': '*'
+    },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok && r.status !== 204) throw new Error('SharePoint update error ' + r.status);
+}
+
+function safeJSON(s, fallback) {
+  try { return JSON.parse(s || 'null') || fallback; } catch(_) { return fallback; }
+}
+
+function parseCSV(text) {
+  var lines = text.trim().split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean);
+  if (lines.length < 2) return [];
+  var headers = lines[0].split(',').map(function(h){return h.replace(/^"|"$/g,'').trim();});
+  return lines.slice(1).map(function(line){
+    var vals = [], cur = '', inQ = false;
+    for (var i = 0; i < line.length; i++) {
+      var c = line[i];
+      if (c === '"') { inQ = !inQ; continue; }
+      if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ''; continue; }
+      cur += c;
+    }
+    vals.push(cur.trim());
+    var obj = {};
+    headers.forEach(function(h, i){ obj[h] = vals[i] !== undefined ? vals[i] : ''; });
+    return obj;
+  });
+}
+
+async function loadConfig() {
+  async function spFile(relPath) {
+    var fileUrl = SP_APP_RELPATH + relPath;
+    var r = await spFetch(SP_API + "/web/GetFileByServerRelativeUrl('" + fileUrl + "')/$value");
+    if (!r.ok) throw new Error('File not found: ' + relPath + ' (' + r.status + ')');
+    return r.text();
+  }
+  var results = await Promise.all([ spFile('/data/team.csv'), spFile('/data/milestones.csv') ]);
+  return {
+    team: parseCSV(results[0])
+      .map(function(r){ return { id: String(r.id||'').trim(), name: (r.name||'').trim() }; })
+      .filter(function(m){ return m.id && m.name; }),
+    milestones: parseCSV(results[1])
+      .map(function(r){ return { id: String(r.id||'').trim(), title: (r.title||'').trim(), status: (r.status||'Active').trim() }; })
+      .filter(function(m){ return m.id && m.title; })
+  };
+}
+
+function itemToUserData(item) {
+  return {
+    _spId:         item.Id,
+    userId:        item.Title || '',
+    name:          item.UserName || '',
+    weekOf:        item.WeekOf || '',
+    submitted:     !!item.Submitted,
+    submittedAt:   item.SubmittedAt || null,
+    tasks:         safeJSON(item.TasksJson, []),
+    nextWeekPlans: safeJSON(item.NextWeekPlansJson, [])
+  };
+}
+
+async function loadWeekAll(weekOf) {
+  var items = await spGetItems('MeetingWeeklyData', "WeekOf eq '" + weekOf + "'");
+  return items.map(itemToUserData);
+}
+
+async function saveUserWeek(data) {
+  var item = {
+    Title:             data.userId,
+    WeekOf:            data.weekOf,
+    UserName:          data.name || '',
+    TasksJson:         JSON.stringify(data.tasks || []),
+    NextWeekPlansJson: JSON.stringify(data.nextWeekPlans || []),
+    Submitted:         !!data.submitted,
+    SubmittedAt:       data.submittedAt || ''
+  };
+  if (data._spId) {
+    await spMerge('MeetingWeeklyData', data._spId, item);
+  } else {
+    var created = await spCreate('MeetingWeeklyData', item);
+    data._spId = created.Id;
+  }
+}
+
+async function loadFocusSP(weekOf) {
+  var items = await spGetItems('MeetingFocus', "Title eq '" + weekOf + "'");
+  if (!items.length) return { weekOf: weekOf, focus: '', priorities: [] };
+  var item = items[0];
+  return { _spId: item.Id, weekOf: item.Title, focus: item.Focus || '', priorities: safeJSON(item.PrioritiesJson, []) };
+}
+
+async function saveFocusSP(data) {
+  var item = {
+    Title:          data.weekOf,
+    Focus:          data.focus || '',
+    PrioritiesJson: JSON.stringify(data.priorities || [])
+  };
+  if (data._spId) {
+    await spMerge('MeetingFocus', data._spId, item);
+  } else {
+    var created = await spCreate('MeetingFocus', item);
+    data._spId = created.Id;
+  }
+}
+
+// ── App state ─────────────────────────────────────────────────────────────────
+var config     = { milestones: [], team: [] };
+var weeklyData = [];
+var focusData  = { focus:'', priorities:[] };
+var todayMonday = getWeekSunday(new Date());
+var viewMonday  = getWeekSunday(new Date());
+var collapsedMembers = {};
+var dshDragSrc = null;
+var dshEditUser = null, dshEditTask = null, dshEditList = null;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getWeekSunday(d) {
+  var date = new Date(d), day = date.getDay();
+  var daysToMonday = (1 - day + 7) % 7;
+  date.setDate(date.getDate() + daysToMonday - 1);
+  date.setHours(0,0,0,0); return date;
+}
+function weekStr(m) { return m.getFullYear()+'-'+pad(m.getMonth()+1)+'-'+pad(m.getDate()); }
+function pad(n) { return String(n).padStart(2,'0'); }
+function fmtWeek(m) {
+  var e = new Date(m); e.setDate(m.getDate()+6);
+  var f = function(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
+  return f(m)+' – '+f(e)+', '+e.getFullYear();
+}
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function barColor(p) { return p>=80?'#107c10':p>=50?'#0078d4':'#d13438'; }
+function msName(id) {
+  var m = config.milestones.find(function(m){return String(m.id)===String(id);});
+  return m ? m.title : '';
+}
+function isCurrentWeek() { return weekStr(viewMonday) === weekStr(todayMonday); }
+
+// ── Week navigation ───────────────────────────────────────────────────────────
+function shiftWeek(delta) {
+  var d = new Date(viewMonday); d.setDate(d.getDate() + delta*7);
+  viewMonday = d; loadAndRender();
+}
+function goToday() { viewMonday = getWeekSunday(new Date()); loadAndRender(); }
+
+// ── Focus edit ────────────────────────────────────────────────────────────────
+function startEditFocus() {
+  document.getElementById('fe-focus').value = focusData.focus || '';
+  document.getElementById('fe-priorities').value = (focusData.priorities||[]).join('\n');
+  document.getElementById('focus-view').style.display = 'none';
+  document.getElementById('focus-edit-panel').style.display = 'block';
+  document.getElementById('focus-edit-btn').style.display = 'none';
+}
+function cancelEditFocus() {
+  document.getElementById('focus-view').style.display = 'block';
+  document.getElementById('focus-edit-panel').style.display = 'none';
+  document.getElementById('focus-edit-btn').style.display = '';
+}
+async function saveFocus() {
+  var focus = document.getElementById('fe-focus').value.trim();
+  var priorities = document.getElementById('fe-priorities').value.split('\n')
+    .map(function(l){return l.trim();}).filter(Boolean);
+  focusData = Object.assign({}, focusData, { weekOf: weekStr(viewMonday), focus: focus, priorities: priorities });
+  try { await saveFocusSP(focusData); cancelEditFocus(); renderFocus(); }
+  catch(e) { alert('Save failed: '+e.message); }
+}
+function renderFocus() {
+  var hasContent = focusData.focus || (focusData.priorities && focusData.priorities.length);
+  document.getElementById('focus-main-text').textContent = focusData.focus || '';
+  document.getElementById('focus-main-text').style.display = focusData.focus ? 'block' : 'none';
+  var list = document.getElementById('focus-priorities-list');
+  list.innerHTML = (focusData.priorities||[]).map(function(p, i){
+    return '<li><span class="focus-num">'+(i+1)+'</span>'+esc(p)+'</li>';
+  }).join('');
+  document.getElementById('focus-empty').style.display = hasContent ? 'none' : 'block';
+  document.getElementById('focus-view').style.display = 'block';
+  document.getElementById('focus-edit-panel').style.display = 'none';
+  document.getElementById('focus-edit-btn').style.display = '';
+}
+
+// ── Donut SVG ─────────────────────────────────────────────────────────────────
+function donut(pct, size) {
+  size = size||100; var r=size/2-11, circ=2*Math.PI*r, off=circ-(pct/100)*circ, cx=size/2, cy=size/2;
+  var c = barColor(pct);
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="#edebe9" stroke-width="12"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+c+'" stroke-width="12"'+
+      ' stroke-dasharray="'+circ+'" stroke-dashoffset="'+off+'" stroke-linecap="round"'+
+      ' transform="rotate(-90 '+cx+' '+cy+')" style="transition:stroke-dashoffset .5s"/>'+
+    '<text x="'+cx+'" y="'+(cy+5)+'" text-anchor="middle" font-size="'+(size*0.22)+'px" font-weight="700" fill="'+c+'">'+pct+'%</text>'+
+  '</svg>';
+}
+
+// ── Team summary ──────────────────────────────────────────────────────────────
+function renderTeamSummary() {
+  var tasks = allTasks();
+  var cnt   = tasks.filter(function(t){return t.status!=='Planned' && t.status!=='Postponed by Management';});
+  var done  = cnt.filter(function(t){return t.status==='Completed';}).length;
+  var ip    = tasks.filter(function(t){return t.status==='In Progress';}).length;
+  var sk    = tasks.filter(function(t){return t.status==='Stuck';}).length;
+  var pm    = tasks.filter(function(t){return t.status==='Postponed by Management';}).length;
+  var pct   = cnt.length ? Math.round(done/cnt.length*100) : 0;
+  var subCnt = weeklyData.filter(function(u){return u.submitted;}).length;
+  document.getElementById('team-summary').innerHTML =
+    '<div class="ts-donut">'+donut(pct,100)+'</div>'+
+    '<div class="ts-divider"></div>'+
+    '<div class="ts-stats">'+
+      '<div class="ts-stat"><span class="ts-stat-val" style="color:#107c10">'+done+'</span><div class="ts-stat-lbl">Completed</div></div>'+
+      '<div class="ts-stat"><span class="ts-stat-val" style="color:#0078d4">'+ip+'</span><div class="ts-stat-lbl">In Progress</div></div>'+
+      (sk ? '<div class="ts-stat"><span class="ts-stat-val" style="color:#d13438">'+sk+'</span><div class="ts-stat-lbl">Stuck</div></div>' : '')+
+      (pm ? '<div class="ts-stat"><span class="ts-stat-val" style="color:#8a5e00">'+pm+'</span><div class="ts-stat-lbl">Postponed</div></div>' : '')+
+    '</div>'+
+    '<div class="ts-divider"></div>'+
+    '<div class="ts-stat"><span class="ts-stat-val" style="color:#0078d4">'+subCnt+' / '+config.team.length+'</span><div class="ts-stat-lbl">Submitted</div></div>';
+}
+function allTasks() {
+  var tasks = [];
+  weeklyData.forEach(function(u){ (u.tasks||[]).forEach(function(t){ tasks.push(Object.assign({},t,{userId:u.userId,userName:u.name})); }); });
+  return tasks;
+}
+
+// ── Member cards ──────────────────────────────────────────────────────────────
+function toggleMember(uid) {
+  collapsedMembers[uid] = !collapsedMembers[uid];
+  var body = document.getElementById('mc-body-'+uid);
+  var arrow = document.getElementById('mc-arrow-'+uid);
+  if (body) body.style.display = collapsedMembers[uid] ? 'none' : 'grid';
+  if (arrow) arrow.textContent = collapsedMembers[uid] ? '▼' : '▲';
+}
+function taskLine(t, dotCls, showStatus, userId, listType) {
+  var mn = msName(t.milestoneId);
+  var statusLbl = '';
+  if (showStatus) {
+    var cls = t.status==='In Progress'?'ip':t.status==='Stuck'?'sk':t.status==='Postponed by Management'?'pm':'pl';
+    var lbl = t.status==='In Progress'?'In Progress':t.status==='Stuck'?'Stuck':t.status==='Postponed by Management'?'Postponed':'Planned';
+    statusLbl = '<span class="task-status-lbl '+cls+'">'+lbl+'</span>';
+  }
+  var uid = userId || '';
+  var lt  = listType || 'tasks';
+  var da  = uid ?
+    ' draggable="true"'+
+    ' ondragstart="dshDragStart(event,\''+uid+'\',\''+t.id+'\',\''+lt+'\')"'+
+    ' ondragover="dshDragOver(event,\''+uid+'\',\''+t.id+'\')"'+
+    ' ondrop="dshDrop(event,\''+uid+'\',\''+t.id+'\',\''+lt+'\')"'+
+    ' ondragleave="dshDragLeave(event)"'+
+    ' ondragend="dshDragEnd()"' : '';
+  var editBtn = uid ?
+    '<div class="ti-actions">'+
+      '<button class="ti-btn ti-btn-edit" onclick="openDashEdit(event,\''+uid+'\',\''+t.id+'\',\''+lt+'\')">Edit</button>'+
+      '<button class="ti-btn ti-btn-del" onclick="quickDelTask(event,\''+uid+'\',\''+t.id+'\',\''+lt+'\')">✕</button>'+
+    '</div>' : '';
+  return '<div class="task-item"'+da+'>'+
+    (uid ? '<span class="ti-handle">⠿</span>' : '')+
+    '<span class="task-dot '+dotCls+'"></span>'+
+    '<span class="task-text">'+esc(t.title)+'</span>'+
+    statusLbl+
+    (mn ? '<span class="task-ms">'+esc(mn)+'</span>' : '')+
+    editBtn+
+  '</div>';
+}
+function renderMembers() {
+  var html = config.team.map(function(m) {
+    var ud        = weeklyData.find(function(u){return u.userId===m.id;}) || {};
+    var mt        = (ud.tasks || []);
+    var completed = mt.filter(function(t){return t.status==='Completed';});
+    var inprog    = mt.filter(function(t){return t.status==='In Progress';});
+    var stuck     = mt.filter(function(t){return t.status==='Stuck';});
+    var planned   = mt.filter(function(t){return t.status==='Planned';});
+    var postponed = mt.filter(function(t){return t.status==='Postponed by Management';});
+    var nwp       = ud.nextWeekPlans || [];
+    var submitted = !!ud.submitted;
+    var cnt = completed.length + inprog.length + stuck.length;
+    var pct = cnt ? Math.round(completed.length/cnt*100) : 0;
+    var c   = cnt ? barColor(pct) : '#a19f9d';
+    var init = m.name.split(' ').slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase();
+    var hasStuck = stuck.length > 0;
+    var mcClass = 'mc' + (hasStuck ? ' has-stuck' : submitted ? ' submitted' : mt.length===0 ? ' nosub' : '');
+    var isCollapsed = !!collapsedMembers[m.id];
+    var openTasks = inprog.map(function(t){return taskLine(t,'ip',true,m.id,'tasks');})
+      .concat(stuck.map(function(t){return taskLine(t,'sk',true,m.id,'tasks');}))
+      .concat(postponed.map(function(t){return taskLine(t,'pm',true,m.id,'tasks');}))
+      .concat(planned.map(function(t){return taskLine(t,'pl',true,m.id,'tasks');}));
+    var nwpHtml = nwp.map(function(p){
+      var mn = msName(p.milestoneId);
+      return '<div class="task-item"'+
+        ' draggable="true"'+
+        ' ondragstart="dshDragStart(event,\''+m.id+'\',\''+p.id+'\',\'nwp\')"'+
+        ' ondragover="dshDragOver(event,\''+m.id+'\',\''+p.id+'\')"'+
+        ' ondrop="dshDrop(event,\''+m.id+'\',\''+p.id+'\',\'nwp\')"'+
+        ' ondragleave="dshDragLeave(event)"'+
+        ' ondragend="dshDragEnd()"'+
+        '>'+
+        '<span class="ti-handle">⠿</span>'+
+        '<span class="task-dot nwp"></span>'+
+        '<span class="task-text">'+esc(p.title)+'</span>'+
+        (mn ? '<span class="task-ms">'+esc(mn)+'</span>' : '')+
+        '<div class="ti-actions">'+
+          '<button class="ti-btn ti-btn-edit" onclick="openDashEdit(event,\''+m.id+'\',\''+p.id+'\',\'nwp\')">Edit</button>'+
+        '</div>'+
+      '</div>';
+    });
+    return '<div class="'+mcClass+'" id="mc-'+m.id+'">'+
+      '<div class="mc-hdr" onclick="toggleMember(\''+m.id+'\')">'+
+        '<div class="avatar" style="width:34px;height:34px;font-size:12px">'+esc(init)+'</div>'+
+        '<span class="mc-name">'+esc(m.name)+'</span>'+
+        '<span class="mc-sub-badge '+(submitted?'yes':'no')+'">'+
+          (submitted ? '✓ Submitted' : mt.length===0 ? 'No data' : 'Not submitted')+
+        '</span>'+
+        '<div class="mc-pill-row">'+
+          (completed.length ? '<span class="mc-pill done">✓ '+completed.length+'</span>' : '')+
+          (inprog.length    ? '<span class="mc-pill ip">⟳ '+inprog.length+'</span>' : '')+
+          (stuck.length     ? '<span class="mc-pill sk">⚠ '+stuck.length+'</span>' : '')+
+          (postponed.length ? '<span class="mc-pill pm">⏸ '+postponed.length+'</span>' : '')+
+          (planned.length   ? '<span class="mc-pill pl">◷ '+planned.length+'</span>' : '')+
+        '</div>'+
+        '<span class="mc-pct" style="color:'+c+'">'+(cnt ? pct+'%' : '—')+'</span>'+
+        '<span class="mc-toggle" id="mc-arrow-'+m.id+'">'+(isCollapsed?'▼':'▲')+'</span>'+
+      '</div>'+
+      '<div class="mc-body" id="mc-body-'+m.id+'" style="display:'+(isCollapsed?'none':'grid')+'">'+
+        '<div class="mc-col">'+
+          '<div class="mc-col-hdr col-done">✓ Completed<span class="mc-col-cnt">'+completed.length+'</span></div>'+
+          (completed.length ? completed.map(function(t){return taskLine(t,'done',false,m.id,'tasks');}).join('') : '<div class="task-empty">Nothing completed yet</div>')+
+        '</div>'+
+        '<div class="mc-col">'+
+          '<div class="mc-col-hdr col-open">⟳ In Progress / Stuck<span class="mc-col-cnt">'+openTasks.length+'</span></div>'+
+          (openTasks.length ? openTasks.join('') : '<div class="task-empty">No open tasks</div>')+
+        '</div>'+
+        '<div class="mc-col">'+
+          '<div class="mc-col-hdr col-nwp">→ Next Week Plans<span class="mc-col-cnt">'+nwp.length+'</span></div>'+
+          (nwpHtml.length ? nwpHtml.join('') : '<div class="task-empty">No plans added</div>')+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  document.getElementById('members-section').innerHTML = html;
+}
+
+// ── Milestone table ───────────────────────────────────────────────────────────
+function renderMilestones() {
+  var tasks = allTasks();
+  var mstat = config.milestones.map(function(m){
+    var mt = tasks.filter(function(t){return String(t.milestoneId)===String(m.id);});
+    if (!mt.length) return null;
+    var done = mt.filter(function(t){return t.status==='Completed';}).length;
+    var ip   = mt.filter(function(t){return t.status==='In Progress';}).length;
+    var sk   = mt.filter(function(t){return t.status==='Stuck';}).length;
+    var pl   = mt.filter(function(t){return t.status==='Planned';}).length;
+    var pm   = mt.filter(function(t){return t.status==='Postponed by Management';}).length;
+    var cnt  = done+ip+sk;
+    return { id:m.id, title:m.title, done:done, ip:ip, sk:sk, pl:pl, pm:pm,
+             total:mt.length, pct:cnt?Math.round(done/cnt*100):0 };
+  }).filter(Boolean).sort(function(a,b){return b.total-a.total;});
+  var card = document.getElementById('ms-card');
+  if (!mstat.length) { card.style.display='none'; return; }
+  card.style.display='block';
+  card.innerHTML =
+    '<div class="card-title">Progress by Milestone</div>'+
+    '<table><thead><tr>'+
+      '<th>Milestone</th>'+
+      '<th style="text-align:center;color:#107c10">Done</th>'+
+      '<th style="text-align:center;color:#0078d4">In Progress</th>'+
+      '<th style="text-align:center;color:#d13438">Stuck</th>'+
+      '<th style="text-align:center;color:#8a5e00">Postponed</th>'+
+      '<th style="text-align:center;color:#605e5c">Planned</th>'+
+      '<th style="text-align:right">%</th><th></th>'+
+    '</tr></thead><tbody>'+
+    mstat.map(function(s){
+      var c = barColor(s.pct);
+      return '<tr><td style="font-weight:500">'+esc(s.title)+'</td>'+
+        '<td style="text-align:center;color:#107c10;font-weight:600">'+s.done+'</td>'+
+        '<td style="text-align:center;color:#0078d4">'+s.ip+'</td>'+
+        '<td style="text-align:center;color:'+(s.sk?'#d13438':'#ccc')+';font-weight:'+(s.sk?700:400)+'">'+s.sk+'</td>'+
+        '<td style="text-align:center;color:'+(s.pm?'#8a5e00':'#ccc')+'">'+s.pm+'</td>'+
+        '<td style="text-align:center;color:#605e5c">'+s.pl+'</td>'+
+        '<td style="text-align:right;font-weight:700;color:'+c+'">'+s.pct+'%</td>'+
+        '<td><div class="pbar-bg"><div class="pbar-fill" style="width:'+s.pct+'%;background:'+c+'"></div></div></td>'+
+      '</tr>';
+    }).join('')+'</tbody></table>';
+}
+
+// ── Dashboard drag to reorder ─────────────────────────────────────────────────
+function dshDragStart(e, userId, taskId, listType) {
+  dshDragSrc = { userId: userId, taskId: taskId, listType: listType };
+  e.dataTransfer.effectAllowed = 'move';
+}
+function dshDragOver(e, userId, taskId) {
+  e.preventDefault();
+  if (!dshDragSrc || dshDragSrc.userId !== userId || dshDragSrc.taskId === taskId) return;
+  document.querySelectorAll('.task-item').forEach(function(r){ r.classList.remove('drag-over-top','drag-over-bottom'); });
+  var row = e.target.closest('.task-item');
+  if (!row) return;
+  var rect = row.getBoundingClientRect();
+  row.classList.add(e.clientY < rect.top + rect.height/2 ? 'drag-over-top' : 'drag-over-bottom');
+}
+function dshDragLeave(e) { var row = e.target.closest('.task-item'); if (row) row.classList.remove('drag-over-top','drag-over-bottom'); }
+function dshDragEnd() {
+  document.querySelectorAll('.task-item').forEach(function(r){ r.classList.remove('drag-over-top','drag-over-bottom','dragging'); });
+  dshDragSrc = null;
+}
+async function dshDrop(e, userId, targetId, listType) {
+  e.preventDefault();
+  if (!dshDragSrc || dshDragSrc.userId !== userId || dshDragSrc.taskId === targetId) { dshDragEnd(); return; }
+  var ud = weeklyData.find(function(u){ return u.userId === userId; });
+  if (!ud) { dshDragEnd(); return; }
+  var arr = dshDragSrc.listType === 'nwp' ? (ud.nextWeekPlans||[]) : (ud.tasks||[]);
+  var srcIdx = arr.findIndex(function(t){ return t.id === dshDragSrc.taskId; });
+  var tgtIdx = arr.findIndex(function(t){ return t.id === targetId; });
+  if (srcIdx === -1 || tgtIdx === -1) { dshDragEnd(); return; }
+  var row = e.target.closest('.task-item');
+  var insertAfter = row && row.classList.contains('drag-over-bottom');
+  var item = arr.splice(srcIdx, 1)[0];
+  var newTgt = arr.findIndex(function(t){ return t.id === targetId; });
+  arr.splice(insertAfter ? newTgt + 1 : newTgt, 0, item);
+  dshDragEnd();
+  try { await saveUserWeek(ud); renderMembers(); } catch(err) { alert('Failed to save order: '+err.message); }
+}
+
+// ── Dashboard task edit ────────────────────────────────────────────────────────
+function openDashEdit(e, userId, taskId, listType) {
+  e.stopPropagation();
+  var ud = weeklyData.find(function(u){ return u.userId === userId; });
+  if (!ud) return;
+  var arr = listType === 'nwp' ? (ud.nextWeekPlans||[]) : (ud.tasks||[]);
+  var task = arr.find(function(t){ return t.id === taskId; });
+  if (!task) return;
+  dshEditUser = userId; dshEditTask = taskId; dshEditList = listType;
+  var msSel = document.getElementById('de-milestone');
+  msSel.innerHTML = '<option value="">— None —</option>';
+  config.milestones.forEach(function(m){
+    var o = document.createElement('option'); o.value = m.id; o.textContent = m.title; msSel.appendChild(o);
+  });
+  var member = config.team.find(function(m){ return m.id === userId; });
+  document.getElementById('de-title-hdr').textContent = listType === 'nwp' ? 'Edit Next Week Plan' : 'Edit Task';
+  document.getElementById('de-member-lbl').textContent = member ? member.name : userId;
+  document.getElementById('de-title').value    = task.title || '';
+  document.getElementById('de-status').value   = task.status || 'Planned';
+  document.getElementById('de-milestone').value = task.milestoneId || '';
+  document.getElementById('de-deadline').value  = task.deadline || '';
+  document.getElementById('de-notes').value     = task.notes || '';
+  document.getElementById('de-err-title').textContent = '';
+  document.getElementById('de-row-status').style.display   = listType === 'nwp' ? 'none' : '';
+  document.getElementById('de-row-deadline').style.display = listType === 'nwp' ? 'none' : '';
+  document.getElementById('de-row-notes').style.display    = listType === 'nwp' ? 'none' : '';
+  document.getElementById('de-overlay').classList.add('open');
+  setTimeout(function(){ document.getElementById('de-title').focus(); }, 50);
+}
+function closeDashEdit() {
+  document.getElementById('de-overlay').classList.remove('open');
+  dshEditUser = null; dshEditTask = null; dshEditList = null;
+}
+async function saveDashEdit() {
+  var title = document.getElementById('de-title').value.trim();
+  if (!title) { document.getElementById('de-err-title').textContent = 'Title is required.'; return; }
+  var ud = weeklyData.find(function(u){ return u.userId === dshEditUser; });
+  if (!ud) return;
+  var arr = dshEditList === 'nwp' ? (ud.nextWeekPlans||[]) : (ud.tasks||[]);
+  var idx = arr.findIndex(function(t){ return t.id === dshEditTask; });
+  if (idx === -1) return;
+  arr[idx] = Object.assign({}, arr[idx], {
+    title:       title,
+    status:      dshEditList === 'nwp' ? (arr[idx].status||'Planned') : document.getElementById('de-status').value,
+    milestoneId: document.getElementById('de-milestone').value || null,
+    deadline:    dshEditList === 'nwp' ? null : (document.getElementById('de-deadline').value || null),
+    notes:       dshEditList === 'nwp' ? '' : document.getElementById('de-notes').value.trim()
+  });
+  try { await saveUserWeek(ud); closeDashEdit(); renderMembers(); renderMilestones(); renderTeamSummary(); }
+  catch(err) { alert('Save failed: '+err.message); }
+}
+async function delDashTask() {
+  if (!confirm('Delete this task?')) return;
+  var ud = weeklyData.find(function(u){ return u.userId === dshEditUser; });
+  if (!ud) return;
+  if (dshEditList === 'nwp') {
+    ud.nextWeekPlans = (ud.nextWeekPlans||[]).filter(function(t){ return t.id !== dshEditTask; });
+  } else {
+    ud.tasks = (ud.tasks||[]).filter(function(t){ return t.id !== dshEditTask; });
+  }
+  try { await saveUserWeek(ud); closeDashEdit(); renderMembers(); renderMilestones(); renderTeamSummary(); }
+  catch(err) { alert('Delete failed: '+err.message); }
+}
+async function quickDelTask(e, userId, taskId, listType) {
+  e.stopPropagation();
+  if (!confirm('Delete this task?')) return;
+  var ud = weeklyData.find(function(u){ return u.userId === userId; });
+  if (!ud) return;
+  if (listType === 'nwp') {
+    ud.nextWeekPlans = (ud.nextWeekPlans||[]).filter(function(t){ return t.id !== taskId; });
+  } else {
+    ud.tasks = (ud.tasks||[]).filter(function(t){ return t.id !== taskId; });
+  }
+  try { await saveUserWeek(ud); renderMembers(); renderMilestones(); renderTeamSummary(); }
+  catch(err) { alert('Delete failed: '+err.message); }
+}
+
+// ── Week nav render ───────────────────────────────────────────────────────────
+function renderWeekNav() {
+  var cur = isCurrentWeek();
+  document.getElementById('wn-label').textContent = fmtWeek(viewMonday) + (cur ? ' (current)' : '');
+  document.getElementById('wn-next').disabled = cur;
+  document.getElementById('wn-today').style.display = cur ? 'none' : '';
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+function render() {
+  var subIds  = new Set(weeklyData.filter(function(u){return u.submitted;}).map(function(u){return u.userId;}));
+  var missing = config.team.filter(function(m){return !subIds.has(m.id);}).map(function(m){return m.name;});
+  var subCnt  = weeklyData.filter(function(u){return u.submitted;}).length;
+  renderWeekNav();
+  document.getElementById('week-lbl').innerHTML =
+    esc(fmtWeek(viewMonday))+'&nbsp; · &nbsp;'+
+    '<strong style="color:#107c10">'+subCnt+'</strong> of '+config.team.length+' submitted';
+  document.getElementById('not-sub').textContent =
+    missing.length ? 'Not yet submitted: '+missing.join(', ') : '';
+  renderFocus();
+  renderTeamSummary();
+  renderMembers();
+  renderMilestones();
+}
+
+// ── Load ──────────────────────────────────────────────────────────────────────
+async function load() {
+  var week = weekStr(viewMonday);
+  var results = await Promise.all([ loadConfig(), loadWeekAll(week), loadFocusSP(week) ]);
+  config     = results[0];
+  config.milestones = config.milestones.map(function(m){ return Object.assign({},m,{id:String(m.id)}); });
+  weeklyData = results[1];
+  focusData  = results[2];
+}
+async function loadAndRender() {
+  try { await load(); render(); } catch(e) { alert('Load failed: '+e.message); }
+}
+async function reload() { await loadAndRender(); }
+
+// ── Client-side Word export ───────────────────────────────────────────────────
+function exportSummary() {
+  var doc = buildWordDoc(weekStr(viewMonday), config, weeklyData, focusData);
+  var blob = new Blob([doc], { type: 'application/msword' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'Meeting-Summary-' + weekStr(viewMonday) + '.doc';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
+function buildWordDoc(weekDate, cfg, weeklyData, focus) {
+  function e(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function msN(id) { var m = cfg.milestones.find(function(m){ return String(m.id)===String(id); }); return m ? m.title : ''; }
+  function statusColor(s) {
+    return s==='Completed'?'#107c10':s==='In Progress'?'#0078d4':s==='Stuck'?'#d13438':s==='Postponed by Management'?'#8a5e00':'#605e5c';
+  }
+  function fmtWeekLabel(ds) {
+    var d = new Date(ds+'T12:00:00'), day = d.getDay();
+    var mon = new Date(d); mon.setDate(d.getDate()+(day===0?-6:1-day));
+    var fri = new Date(mon); fri.setDate(mon.getDate()+4);
+    var f = function(x){ return x.toLocaleDateString('en-US',{month:'long',day:'numeric'}); };
+    return f(mon)+' – '+f(fri)+', '+fri.getFullYear();
+  }
+  var weekLabel = fmtWeekLabel(weekDate);
+  var now = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var subCount = weeklyData.filter(function(u){ return u.submitted; }).length;
+  var focusHtml = '';
+  if (focus.focus || (focus.priorities && focus.priorities.length)) {
+    focusHtml += '<h2>&#128204; Weekly Focus &amp; Priority</h2>';
+    if (focus.focus) focusHtml += '<p style="font-size:13pt;font-weight:bold">'+e(focus.focus)+'</p>';
+    if (focus.priorities && focus.priorities.length) {
+      focusHtml += '<ol>';
+      focus.priorities.forEach(function(pr){ focusHtml += '<li>'+e(pr)+'</li>'; });
+      focusHtml += '</ol>';
+    }
+  }
+  var membersHtml = '<h2>Team Status</h2>';
+  cfg.team.forEach(function(member) {
+    var ud = weeklyData.find(function(u){ return u.userId===member.id; }) || {};
+    var tasks = ud.tasks || [];
+    var nwp   = ud.nextWeekPlans || [];
+    var submitted = !!ud.submitted;
+    membersHtml += '<h3>'+e(member.name)+
+      ' <span style="font-size:9pt;font-weight:normal;color:'+(submitted?'#107c10':'#a19f9d')+'">'+
+      (submitted?'&#10003; Submitted':'(not submitted)')+'</span></h3>';
+    if (tasks.length) {
+      membersHtml += '<p style="font-size:9pt;font-weight:bold;color:#605e5c;margin-bottom:3pt;text-transform:uppercase;letter-spacing:.3pt">Last Week Tasks</p>';
+      membersHtml += '<table><tr><th style="width:55%">Task</th><th style="width:22%">Status</th><th style="width:23%">Milestone</th></tr>';
+      tasks.forEach(function(t) {
+        var bold = (t.status==='Completed'||t.status==='Stuck') ? 'bold' : 'normal';
+        membersHtml += '<tr>'+
+          '<td>'+e(t.title)+(t.notes?'<br><span style="font-size:9pt;color:#a19f9d;font-style:italic">'+e(t.notes)+'</span>':'')+'</td>'+
+          '<td style="color:'+statusColor(t.status)+';font-weight:'+bold+'">'+e(t.status)+'</td>'+
+          '<td style="font-size:9pt;color:#605e5c">'+e(msN(t.milestoneId))+'</td>'+
+        '</tr>';
+      });
+      membersHtml += '</table>';
+    } else {
+      membersHtml += '<p style="font-size:10pt;color:#a19f9d;font-style:italic">No tasks recorded</p>';
+    }
+    if (nwp.length) {
+      membersHtml += '<p style="font-size:9pt;font-weight:bold;color:#0078d4;margin-top:7pt;margin-bottom:3pt;text-transform:uppercase;letter-spacing:.3pt">Plans for Next Week</p><ul>';
+      nwp.forEach(function(plan) {
+        var mn = msN(plan.milestoneId);
+        membersHtml += '<li>'+e(plan.title)+(mn?' <span style="font-size:9pt;color:#8a8886">['+e(mn)+']</span>':'')+'</li>';
+      });
+      membersHtml += '</ul>';
+    } else {
+      membersHtml += '<p style="font-size:10pt;color:#a19f9d;font-style:italic">No next-week plans added</p>';
+    }
+    membersHtml += '<hr>';
+  });
+  var msHtml = '';
+  var msStats = cfg.milestones.map(function(m) {
+    var mt = [];
+    weeklyData.forEach(function(ud){ (ud.tasks||[]).forEach(function(t){ if(String(t.milestoneId)===String(m.id)) mt.push(t); }); });
+    if (!mt.length) return null;
+    var done=mt.filter(function(t){return t.status==='Completed';}).length;
+    var ip=mt.filter(function(t){return t.status==='In Progress';}).length;
+    var sk=mt.filter(function(t){return t.status==='Stuck';}).length;
+    var cnt=done+ip+sk;
+    return {title:m.title,done:done,ip:ip,sk:sk,pct:cnt?Math.round(done/cnt*100):0};
+  }).filter(Boolean);
+  if (msStats.length) {
+    msHtml = '<h2>Milestone Progress</h2><table>'+
+      '<tr><th>Milestone</th><th style="text-align:center">Done</th><th style="text-align:center">In Progress</th><th style="text-align:center">Stuck</th><th style="text-align:center">%</th></tr>';
+    msStats.forEach(function(s) {
+      msHtml += '<tr><td>'+e(s.title)+'</td>'+
+        '<td style="text-align:center;color:#107c10;font-weight:bold">'+s.done+'</td>'+
+        '<td style="text-align:center;color:#0078d4">'+s.ip+'</td>'+
+        '<td style="text-align:center;color:'+(s.sk?'#d13438':'#323130')+';font-weight:'+(s.sk?'bold':'normal')+'">'+s.sk+'</td>'+
+        '<td style="text-align:center;font-weight:bold">'+s.pct+'%</td></tr>';
+    });
+    msHtml += '</table>';
+  }
+  return "<!DOCTYPE html>\n<html xmlns:o='urn:schemas-microsoft-com:office:office'\n"+
+    "      xmlns:w='urn:schemas-microsoft-com:office:word'\n"+
+    "      xmlns='http://www.w3.org/TR/REC-html40'>\n"+
+    "<head><meta charset='utf-8'><title>Meeting Summary "+weekDate+"</title>\n"+
+    "<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>90</w:Zoom></w:WordDocument></xml><![endif]-->\n"+
+    "<style>\n@page{margin:1in;size:A4}\nbody{font-family:Calibri,'Segoe UI',sans-serif;font-size:11pt;color:#323130;line-height:1.4}\n"+
+    "h1{font-size:20pt;color:#0078d4;border-bottom:2pt solid #0078d4;padding-bottom:4pt;margin-bottom:4pt}\n"+
+    "h2{font-size:13pt;color:#0078d4;border-bottom:1pt solid #c7e0f4;padding-bottom:3pt;margin-top:18pt;margin-bottom:8pt;page-break-after:avoid}\n"+
+    "h3{font-size:12pt;font-weight:bold;margin-top:14pt;margin-bottom:5pt;page-break-after:avoid}\n"+
+    "table{border-collapse:collapse;width:100%;font-size:10pt;margin-bottom:8pt}\n"+
+    "th{background:#f3f2f1;border:1pt solid #edebe9;padding:5pt 7pt;text-align:left;font-weight:bold;color:#605e5c;font-size:9pt}\n"+
+    "td{border:1pt solid #edebe9;padding:5pt 7pt;vertical-align:top}\n"+
+    "ul,ol{margin:4pt 0;padding-left:18pt}li{margin-bottom:3pt}\n"+
+    "hr{border:none;border-top:1pt solid #edebe9;margin:10pt 0}\n"+
+    ".meta{font-size:10pt;color:#605e5c;margin-bottom:14pt}\n"+
+    "</style></head><body>\n"+
+    "<h1>Weekly Meeting Summary</h1>\n"+
+    "<div class='meta'><strong>Week of:</strong> "+weekLabel+"<br>"+
+    "<strong>Generated:</strong> "+now+"<br>"+
+    "<strong>Submissions:</strong> "+subCount+" of "+cfg.team.length+" team members</div>\n"+
+    focusHtml+"\n"+membersHtml+"\n"+msHtml+"\n</body></html>";
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+async function init() {
+  await msalInstance.handleRedirectPromise().catch(function(){});
+  try {
+    await load();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    render();
+  } catch(e) {
+    document.getElementById('loading').innerHTML =
+      '<div style="color:#d13438;font-size:16px;font-weight:600">⚠ Cannot load dashboard</div>'+
+      '<div style="margin-top:12px;font-size:14px;color:#605e5c">Make sure you are signed in to Microsoft 365 and that the SharePoint Lists have been created (run setup.html once).</div>'+
+      '<div style="margin-top:8px;font-size:13px;color:#a19f9d">'+esc(e.message)+'</div>';
+  }
+}
+init();
+</script>
+</body>
+</html>
