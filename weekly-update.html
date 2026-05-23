@@ -106,11 +106,6 @@
       <button class="week-nav-today" id="btn-today" onclick="goToday()" style="display:none">Today</button>
     </div>
     <div class="arc-banner" id="arc-banner"></div>
-    <div class="prep-bar" id="prep-bar" style="display:none">
-      <span class="prep-bar-text">Next meeting week: <strong id="next-week-prep-label"></strong> — add tasks and priorities before the meeting</span>
-      <button class="btn-prep" onclick="goNextWeek()">📋 Prepare Next Week →</button>
-    </div>
-
     <!-- Tasks planned for previous week (includes inline prev-plans reference) -->
     <div class="card">
       <div class="toolbar">
@@ -480,20 +475,15 @@ function renderNav() {
   document.getElementById('week-nav-label').textContent = fmtWeek(viewMonday) + (mode==='current' ? ' (current)' : '');
   document.getElementById('btn-next-week').disabled = false;
   document.getElementById('btn-today').style.display = mode==='current' ? 'none' : '';
-  var banner  = document.getElementById('arc-banner');
-  var prepBar = document.getElementById('prep-bar');
+  var banner = document.getElementById('arc-banner');
   if (mode === 'past') {
     banner.style.cssText = 'display:block;background:#e1f0ff;border-color:#c7e0f4;color:#0078d4';
     banner.textContent = '📅 Archive view — this is a past week. Tasks are read-only.';
-    prepBar.style.display = 'none';
   } else if (mode === 'future') {
     banner.style.cssText = 'display:block;background:#fff4ce;border-color:#f0d96a;color:#8a5e00';
     banner.textContent = '📋 Prep mode — you\'re preparing for ' + fmtWeek(viewMonday) + '. Changes save automatically.';
-    prepBar.style.display = 'none';
   } else {
     banner.style.display = 'none';
-    prepBar.style.display = '';
-    document.getElementById('next-week-prep-label').textContent = fmtWeekShort(nextWeekStart);
   }
 }
 function goNextWeek() {
