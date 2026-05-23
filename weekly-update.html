@@ -611,8 +611,13 @@ function renderNextWeekPlans() {
   var canDragNwp = !ro;
   el.innerHTML = plans.map(function(p){
     var ms = config.milestones.find(function(m){return m.id===p.milestoneId;});
+    var over = !ro && isOverdue(p.deadline);
+    var dlHtml   = p.deadline ? '<span style="color:'+(over?'#d13438':'#605e5c')+';font-weight:'+(over?600:400)+'">Due: '+fmtDate(p.deadline)+(over?' ⚠':'')+'</span>' : '';
+    var noteHtml = p.notes ? '<span style="font-style:italic;color:#a19f9d">'+esc(p.notes.substring(0,60))+(p.notes.length>60?'…':'')+'</span>' : '';
+    var metaHtml = (ms?'<span class="ms-tag">'+esc(ms.title)+'</span>':'')+dlHtml+noteHtml;
     var acts = ro ? '' :
       '<div class="task-actions">'+
+        '<button class="btn btn-outline btn-sm" onclick="openNWPModal(\''+p.id+'\')">Edit</button>'+
         '<button class="btn btn-danger btn-sm" onclick="delNextWeekPlan(\''+p.id+'\')">Delete</button>'+
       '</div>';
     var da = canDragNwp ?
@@ -627,7 +632,7 @@ function renderNextWeekPlans() {
       '<span class="pill" style="background:#e1f0ff;color:#0078d4">→ Planned</span>'+
       '<div class="task-info">'+
         '<div class="task-title">'+esc(p.title)+'</div>'+
-        (ms?'<div class="task-meta"><span class="ms-tag">'+esc(ms.title)+'</span></div>':'')+
+        (metaHtml ? '<div class="task-meta">'+metaHtml+'</div>' : '')+
       '</div>'+acts+'</div>';
   }).join('');
 }
@@ -682,14 +687,16 @@ function openModal(id) {
   document.getElementById('task-overlay').classList.add('open');
   document.getElementById('f-title').focus();
 }
-function openNWPModal() {
-  modalMode = 'plan'; editingId = null; restoreModalRows();
-  document.getElementById('row-status').style.display   = 'none';
-  document.getElementById('row-deadline').style.display = 'none';
-  document.getElementById('row-notes').style.display    = 'none';
-  document.getElementById('modal-title').textContent   = 'Add Plan for Upcoming Week';
-  document.getElementById('f-title').value             = '';
-  document.getElementById('f-milestone').value         = '';
+function openNWPModal(id) {
+  modalMode = 'plan'; restoreModalRows();
+  editingId = id || null;
+  var p = id ? userData.nextWeekPlans.find(function(x){ return x.id===id; }) : null;
+  document.getElementById('row-status').style.display = 'none';
+  document.getElementById('modal-title').textContent   = p ? 'Edit Plan' : 'Add Plan for Upcoming Week';
+  document.getElementById('f-title').value             = p ? p.title : '';
+  document.getElementById('f-milestone').value         = p ? (p.milestoneId||'') : '';
+  document.getElementById('f-deadline').value          = p ? (p.deadline||'') : '';
+  document.getElementById('f-notes').value             = p ? (p.notes||'') : '';
   document.getElementById('e-title').textContent       = '';
   document.getElementById('e-milestone').textContent   = '';
   document.getElementById('task-overlay').classList.add('open');
@@ -768,10 +775,21 @@ async function delTask(id) {
 async function saveNextWeekPlan() {
   var title = document.getElementById('f-title').value.trim();
   var msId  = document.getElementById('f-milestone').value;
-  document.getElementById('e-title').textContent    = title ? '' : 'Title is required.';
+  document.getElementById('e-title').textContent     = title ? '' : 'Title is required.';
   document.getElementById('e-milestone').textContent = msId  ? '' : 'Please select a milestone.';
   if (!title || !msId) return;
-  userData.nextWeekPlans.push({ id: uid(), title: title, milestoneId: msId });
+  var plan = {
+    id:          editingId || uid(),
+    title:       title,
+    milestoneId: msId,
+    deadline:    document.getElementById('f-deadline').value || null,
+    notes:       document.getElementById('f-notes').value.trim()
+  };
+  if (editingId) {
+    userData.nextWeekPlans = userData.nextWeekPlans.map(function(p){ return p.id===editingId ? plan : p; });
+  } else {
+    userData.nextWeekPlans.push(plan);
+  }
   var btn = document.getElementById('btn-save');
   btn.disabled = true; btn.textContent = 'Saving…';
   try { await saveUserData(); closeTaskModal(); renderNextWeekPlans(); }
