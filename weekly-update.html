@@ -552,6 +552,17 @@ function renderTasks() {
   }).join('');
 }
 
+function editPrevPlan(planId) {
+  var plan = prevPlans.find(function(p){ return p.id === planId; });
+  if (!plan) return;
+  var existing = userData.tasks.find(function(t){ return t.title === plan.title; });
+  if (!existing) {
+    existing = { id: uid(), title: plan.title, status: 'Planned', milestoneId: plan.milestoneId || null, deadline: null, notes: '' };
+    userData.tasks.push(existing);
+  }
+  openModal(existing.id);
+}
+
 function renderPrevPlansInline() {
   var el = document.getElementById('prev-plans-inline');
   var mode = weekMode();
@@ -559,18 +570,28 @@ function renderPrevPlansInline() {
     el.style.display = 'none';
     return;
   }
+  var ro = userData.submitted;
   el.style.display = 'block';
   el.innerHTML =
     '<div class="prev-plans-section">'+
     '<div class="prev-plans-section-title">📋 Planned last week (for reference)</div>'+
     prevPlans.map(function(p) {
       var ms = config.milestones.find(function(m){ return m.id === p.milestoneId; });
+      var existing = userData.tasks.find(function(t){ return t.title === p.title; });
+      var statusPill = existing
+        ? '<span class="pill" style="'+PILL_STYLE[existing.status]+'">'+esc(existing.status)+'</span>'
+        : '<span class="pill" style="background:#e1f0ff;color:#0078d4">→ Planned</span>';
+      var editBtn = ro ? '' :
+        '<div class="task-actions">'+
+          '<button class="btn btn-outline btn-sm" onclick="editPrevPlan(\''+p.id+'\')">Edit / Update</button>'+
+        '</div>';
       return '<div class="task-row">'+
-        '<span class="pill" style="background:#e1f0ff;color:#0078d4">→ Planned</span>'+
+        statusPill+
         '<div class="task-info">'+
           '<div class="task-title">'+esc(p.title)+'</div>'+
           (ms ? '<div class="task-meta"><span class="ms-tag">'+esc(ms.title)+'</span></div>' : '')+
         '</div>'+
+        editBtn+
       '</div>';
     }).join('')+
     '</div>';
