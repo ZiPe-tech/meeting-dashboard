@@ -34,8 +34,9 @@
     .focus-list li { display: flex; align-items: baseline; gap: 10px; font-size: 13px; color: #323130; }
     .focus-num { background: #8a7535; color: #fff; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; line-height: 1; }
     .card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; }
-    .card-section { font-size: 11px; font-weight: 700; color: #605e5c; letter-spacing: .6px; text-transform: uppercase; margin-bottom: 12px; }
-    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .card-section { font-size: 11px; font-weight: 700; color: #605e5c; letter-spacing: .6px; text-transform: uppercase; margin-bottom: 4px; }
+    .card-date { font-size: 12px; color: #0078d4; font-weight: 500; margin-bottom: 10px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
     .tabs { display: flex; border-bottom: 1px solid #edebe9; margin-bottom: 12px; flex-wrap: wrap; }
     .tab { padding: 6px 12px; border: none; border-bottom: 2px solid transparent; background: none; cursor: pointer; font-size: 13px; color: #605e5c; white-space: nowrap; }
     .tab.active { border-bottom-color: #0078d4; color: #0078d4; font-weight: 600; }
@@ -79,11 +80,8 @@
     .mf { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
     .loading { text-align: center; padding: 80px; color: #605e5c; font-size: 16px; }
     .user-btn { font-size: 12px; color: #0078d4; background: none; border: none; cursor: pointer; text-decoration: underline; margin-left: 8px; }
-    #prev-plans-card { background: #f0f6ff; border: 1px solid #c7e0f4; }
-    #prev-plans-card .card-section { color: #0078d4; }
-    .prev-plans-hint { font-size: 12px; color: #605e5c; margin-bottom: 12px; }
-    .btn-import-all { font-size: 12px; background: #deecf9; color: #0078d4; border: 1px solid #c7e0f4; border-radius: 4px; padding: 3px 10px; cursor: pointer; font-weight: 600; }
-    .btn-import-all:hover { background: #c7e0f4; }
+    .prev-plans-section { background: #f0f6ff; border: 1px solid #c7e0f4; border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
+    .prev-plans-section-title { font-size: 11px; font-weight: 700; color: #0078d4; letter-spacing: .6px; text-transform: uppercase; margin-bottom: 8px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"></script>
 </head>
@@ -109,32 +107,36 @@
     </div>
     <div class="arc-banner" id="arc-banner"></div>
     <div class="prep-bar" id="prep-bar" style="display:none">
-      <span class="prep-bar-text">Get ready for next week — <strong>add tasks and priorities before the meeting</strong></span>
+      <span class="prep-bar-text">Next meeting week: <strong id="next-week-prep-label"></strong> — add tasks and priorities before the meeting</span>
       <button class="btn-prep" onclick="goNextWeek()">📋 Prepare Next Week →</button>
     </div>
-    <div class="card" id="prev-plans-card" style="display:none">
-      <div class="toolbar">
-        <div class="card-section">📋 Planned for this week</div>
-        <button class="btn-import-all" id="btn-import-all" onclick="importAllPlans()">↓ Import all</button>
-      </div>
-      <div class="prev-plans-hint" id="prev-plans-hint"></div>
-      <div id="prev-plans-list"></div>
-    </div>
+
+    <!-- Tasks planned for previous week (includes inline prev-plans reference) -->
     <div class="card">
       <div class="toolbar">
-        <div class="card-section">This Week's Tasks</div>
+        <div>
+          <div class="card-section">Tasks planned for previous week</div>
+          <div class="card-date" id="prev-week-label"></div>
+        </div>
         <button class="btn btn-primary btn-sm" id="btn-add" onclick="openModal()">+ Add Task</button>
       </div>
+      <div id="prev-plans-inline" style="display:none"></div>
       <div class="tabs" id="tabs"></div>
       <div id="task-list"></div>
     </div>
+
+    <!-- New plans for upcoming week -->
     <div class="card" id="nwp-card">
       <div class="toolbar">
-        <div class="card-section">Plans for Next Week</div>
+        <div>
+          <div class="card-section">New plans for upcoming week</div>
+          <div class="card-date" id="next-week-label"></div>
+        </div>
         <button class="btn btn-primary btn-sm" id="btn-add-nwp" onclick="openNWPModal()">+ Add Plan</button>
       </div>
       <div id="nwp-list"></div>
     </div>
+
     <div class="submit-bar" id="submit-bar">
       <button class="btn btn-primary" id="btn-submit" onclick="submitUpdate()">Submit Weekly Update</button>
       <span class="hint" id="submit-hint"></span>
@@ -201,14 +203,11 @@
 // ── SharePoint configuration ──────────────────────────────────────────────────
 var SP_SITE = 'https://xtrodes.sharepoint.com/sites/X-trodes';
 var SP_API  = SP_SITE + '/_api';
-// UPDATE THIS PATH after uploading the app folder to SharePoint:
 var SP_APP_RELPATH = '/sites/X-trodes/Shared Documents/General/sharepoint-app';
 
-// ── SharePoint API helpers ────────────────────────────────────────────────────
-// ── MSAL authentication ────────────────────────────────────────────────────────
 var MSAL_CONFIG = {
   auth: {
-    clientId: '0f683555-282e-4228-95cc-22adb2581b3d',  // ← paste your Azure AD App (client) ID here
+    clientId: '0f683555-282e-4228-95cc-22adb2581b3d',
     authority: 'https://login.microsoftonline.com/xtrodes.onmicrosoft.com',
     redirectUri: 'https://zipe-tech.github.io/meeting-dashboard/blank.html'
   },
@@ -239,7 +238,6 @@ async function spFetch(url, opts) {
   return fetch(url, opts);
 }
 
-// ── SharePoint API helpers ─────────────────────────────────────────────────────
 async function spGetItems(listName, filter) {
   var url = SP_API + "/web/lists/getbytitle('" + listName + "')/items?$top=500";
   if (filter) url += '&$filter=' + encodeURIComponent(filter);
@@ -461,6 +459,7 @@ async function confirmName() {
   document.getElementById('name-overlay').classList.remove('open');
   await loadUserData(member);
   await loadFocus();
+  await loadPrevPlans(member);
   renderPage();
 }
 function changeName() { localStorage.removeItem('wm_user'); showNameModal(); }
@@ -477,7 +476,7 @@ var PILL_STYLE = {
 
 function renderNav() {
   var mode = weekMode();
-  var nextWeekLabel = fmtWeekShort(new Date(viewMonday.getTime() + 7*24*60*60*1000));
+  var nextWeekStart = new Date(viewMonday.getTime() + 7*24*60*60*1000);
   document.getElementById('week-nav-label').textContent = fmtWeek(viewMonday) + (mode==='current' ? ' (current)' : '');
   document.getElementById('btn-next-week').disabled = false;
   document.getElementById('btn-today').style.display = mode==='current' ? 'none' : '';
@@ -494,8 +493,7 @@ function renderNav() {
   } else {
     banner.style.display = 'none';
     prepBar.style.display = '';
-    prepBar.querySelector('.prep-bar-text').innerHTML =
-      'Next meeting week: <strong>' + nextWeekLabel + '</strong> — add tasks and priorities before the meeting';
+    document.getElementById('next-week-prep-label').textContent = fmtWeekShort(nextWeekStart);
   }
 }
 function goNextWeek() {
@@ -508,6 +506,16 @@ function fmtWeekShort(m) {
   var f = function(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
   return f(mon) + ' – ' + f(fri);
 }
+
+function renderWeekLabels() {
+  var prevWeekStart = new Date(viewMonday);
+  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+  var nextWeekStart = new Date(viewMonday);
+  nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+  document.getElementById('prev-week-label').textContent = fmtWeek(prevWeekStart);
+  document.getElementById('next-week-label').textContent = fmtWeek(nextWeekStart);
+}
+
 function renderTabs() {
   document.getElementById('tabs').innerHTML = TABS.map(function(s){
     var n = s==='All' ? userData.tasks.length : userData.tasks.filter(function(t){return t.status===s;}).length;
@@ -516,6 +524,7 @@ function renderTabs() {
       +esc(s)+(s!=='All'?'<span class="tab-n">('+n+')</span>':'')+'</button>';
   }).join('');
 }
+
 function renderTasks() {
   var visible = activeTab==='All' ? userData.tasks : userData.tasks.filter(function(t){return t.status===activeTab;});
   var el = document.getElementById('task-list');
@@ -552,6 +561,31 @@ function renderTasks() {
       '</div>'+acts+'</div>';
   }).join('');
 }
+
+function renderPrevPlansInline() {
+  var el = document.getElementById('prev-plans-inline');
+  var mode = weekMode();
+  if (!prevPlans.length || mode === 'past') {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+  el.innerHTML =
+    '<div class="prev-plans-section">'+
+    '<div class="prev-plans-section-title">📋 Planned last week (for reference)</div>'+
+    prevPlans.map(function(p) {
+      var ms = config.milestones.find(function(m){ return m.id === p.milestoneId; });
+      return '<div class="task-row">'+
+        '<span class="pill" style="background:#e1f0ff;color:#0078d4">→ Planned</span>'+
+        '<div class="task-info">'+
+          '<div class="task-title">'+esc(p.title)+'</div>'+
+          (ms ? '<div class="task-meta"><span class="ms-tag">'+esc(ms.title)+'</span></div>' : '')+
+        '</div>'+
+      '</div>';
+    }).join('')+
+    '</div>';
+}
+
 function renderNextWeekPlans() {
   var card = document.getElementById('nwp-card');
   var plans = userData.nextWeekPlans || [];
@@ -586,56 +620,7 @@ function renderNextWeekPlans() {
       '</div>'+acts+'</div>';
   }).join('');
 }
-function renderPrevPlans() {
-  var card = document.getElementById('prev-plans-card');
-  var mode = weekMode();
-  var ro = userData.submitted || mode === 'past';
-  var unimported = prevPlans.filter(function(p){ return !importedPlanIds[p.id]; });
-  if (mode === 'past' || !prevPlans.length) { card.style.display = 'none'; return; }
-  card.style.display = 'block';
-  var prevMonday = new Date(viewMonday); prevMonday.setDate(prevMonday.getDate() - 7);
-  document.getElementById('prev-plans-hint').textContent =
-    'These tasks were planned during the week of ' + fmtWeekShort(prevMonday) + '.';
-  document.getElementById('btn-import-all').style.display = (!ro && unimported.length > 1) ? '' : 'none';
-  document.getElementById('prev-plans-list').innerHTML = prevPlans.map(function(p) {
-    var ms = config.milestones.find(function(m){ return m.id === p.milestoneId; });
-    var done = !!importedPlanIds[p.id];
-    var alreadyHas = userData.tasks.some(function(t){ return t.title === p.title; });
-    var added = done || alreadyHas;
-    return '<div class="task-row">'+
-      '<span class="pill" style="background:#e1f0ff;color:#0078d4">→ Planned</span>'+
-      '<div class="task-info">'+
-        '<div class="task-title">'+esc(p.title)+'</div>'+
-        (ms ? '<div class="task-meta"><span class="ms-tag">'+esc(ms.title)+'</span></div>' : '')+
-      '</div>'+
-      (!ro ? '<div class="task-actions">'+(added
-        ? '<span style="font-size:12px;color:#107c10;font-weight:600">✓ Added</span>'
-        : '<button class="btn btn-outline btn-sm" onclick="importPlan(\''+p.id+'\')">+ Add as task</button>'
-      )+'</div>' : '')+
-    '</div>';
-  }).join('');
-}
-async function importPlan(planId) {
-  var plan = prevPlans.find(function(p){ return p.id === planId; });
-  if (!plan) return;
-  userData.tasks.push({ id: uid(), title: plan.title, status: 'Planned',
-    milestoneId: plan.milestoneId || null, deadline: null, notes: '' });
-  importedPlanIds[planId] = true;
-  try { await saveUserData(); renderPage(); }
-  catch(e) { showBanner(e.message, 'err'); }
-}
-async function importAllPlans() {
-  var toImport = prevPlans.filter(function(p){
-    return !importedPlanIds[p.id] && !userData.tasks.some(function(t){ return t.title === p.title; });
-  });
-  toImport.forEach(function(p){
-    userData.tasks.push({ id: uid(), title: p.title, status: 'Planned',
-      milestoneId: p.milestoneId || null, deadline: null, notes: '' });
-    importedPlanIds[p.id] = true;
-  });
-  try { await saveUserData(); renderPage(); }
-  catch(e) { showBanner(e.message, 'err'); }
-}
+
 function renderPage() {
   var mode = weekMode();
   document.getElementById('user-name').textContent = userData.name;
@@ -660,8 +645,11 @@ function renderPage() {
       : userData.tasks.length+' task'+(userData.tasks.length!==1?'s':'')+' will be submitted.';
   }
   renderNav();
-  renderPrevPlans(); renderTabs(); renderTasks(); renderNextWeekPlans();
+  renderWeekLabels();
+  renderPrevPlansInline();
+  renderTabs(); renderTasks(); renderNextWeekPlans();
 }
+
 function setTab(t) { activeTab = t; renderTabs(); renderTasks(); }
 
 // ── Task modal ─────────────────────────────────────────────────────────────────
@@ -688,7 +676,7 @@ function openNWPModal() {
   document.getElementById('row-status').style.display   = 'none';
   document.getElementById('row-deadline').style.display = 'none';
   document.getElementById('row-notes').style.display    = 'none';
-  document.getElementById('modal-title').textContent   = 'Add Next Week Plan';
+  document.getElementById('modal-title').textContent   = 'Add Plan for Upcoming Week';
   document.getElementById('f-title').value             = '';
   document.getElementById('f-milestone').value         = '';
   document.getElementById('e-title').textContent       = '';
