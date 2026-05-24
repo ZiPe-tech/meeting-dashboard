@@ -500,10 +500,8 @@ function fmtWeekShort(m) {
 function renderWeekLabels() {
   var prevWeekStart = new Date(viewMonday);
   prevWeekStart.setDate(prevWeekStart.getDate() - 7);
-  var nextWeekStart = new Date(viewMonday);
-  nextWeekStart.setDate(nextWeekStart.getDate() + 7);
   document.getElementById('prev-week-label').textContent = fmtWeek(prevWeekStart);
-  document.getElementById('next-week-label').textContent = fmtWeek(nextWeekStart);
+  document.getElementById('next-week-label').textContent = fmtWeek(viewMonday);
 }
 
 function renderTabs() {
