@@ -653,10 +653,11 @@ function renderPage() {
   document.getElementById('reopen-bar').style.display   = (mode === 'current' && userData.submitted)  ? '' : 'none';
   if (mode === 'current' && !userData.submitted) {
     var bs = document.getElementById('btn-submit');
-    bs.disabled = userData.tasks.length===0;
-    document.getElementById('submit-hint').textContent = userData.tasks.length===0
-      ? 'Add at least one task to submit.'
-      : userData.tasks.length+' task'+(userData.tasks.length!==1?'s':'')+' will be submitted.';
+    bs.disabled = false;
+    var n = userData.tasks.length;
+    document.getElementById('submit-hint').textContent = n===0
+      ? 'No tasks added — you can still submit.'
+      : n+' task'+(n!==1?'s':'')+' will be submitted.';
   }
   renderNav();
   renderWeekLabels();
